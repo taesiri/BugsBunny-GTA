@@ -199,6 +199,13 @@ if __name__ == '__main__':
                 cv2.resizeWindow("Semantic Segmentation", 640, 360)
                 cv2.resizeWindow("Overlay", 640, 360)
 
+                # Position windows on second monitor (assuming 1920x1080 primary monitor)
+                # Adjust these coordinates based on your monitor setup
+                second_monitor_x = 1920  # Starting X coordinate of second monitor
+                cv2.moveWindow("Original with BBoxes", second_monitor_x + 50, 50)
+                cv2.moveWindow("Semantic Segmentation", second_monitor_x + 50, 460)
+                cv2.moveWindow("Overlay", second_monitor_x + 740, 50)
+
                 # Show images
                 cv2.imshow("Original with BBoxes", bbox_image)
                 cv2.imshow("Semantic Segmentation", segmentationImage)
