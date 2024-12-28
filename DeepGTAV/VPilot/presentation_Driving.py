@@ -50,8 +50,34 @@ if __name__ == '__main__':
 
     client = Client(ip=args.host, port=args.port)
     
-    scenario = Scenario(drivingMode=[786603,15.0])
-    dataset=Dataset(location=True, time=True, exportBBox2D=True, segmentationImage=True, exportLiDAR=True, maxLidarDist=120)    
+    scenario = Scenario(
+        drivingMode=[786603, 15.0],
+        weather='CLEAR',  # Ensure good visibility
+        time=[12, 0],    # Daylight for better detection
+        vehicle=None     # Use default vehicle
+    )
+    
+    # Increase detection range and add more dataset parameters
+    dataset = Dataset(
+        location=True,
+        time=True,
+        weather=True,
+        vehicles=True,    # Explicitly enable vehicle detection
+        peds=True,        # Enable pedestrian detection
+        trafficSigns=True,
+        direction=True,
+        reward=True,
+        throttle=True,
+        brake=True,
+        steering=True,
+        speed=True,
+        yawRate=True,
+        exportBBox2D=True,
+        segmentationImage=True,
+        exportLiDAR=True,
+        maxLidarDist=120,
+        detection_radius=150  # Increase detection radius
+    )
     
     client.sendMessage(Start(scenario=scenario, dataset=dataset))
 
@@ -204,6 +230,57 @@ if __name__ == '__main__':
                 cv2.waitKey(1)
 
                 cv2.imwrite(os.path.join(args.save_dir, "LiDAR", filename), img)
+
+            if message["bbox2d"] is None or message["bbox2d"] == "":
+                print("Warning: No bounding box data received")
+                continue
+                
+            bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
+            
+            # Filter out invalid bounding boxes
+            filtered_bboxes = []
+            for bbox in bboxes:
+                try:
+                    x, y, w, h, class_id, conf = map(float, bbox.split(','))
+                    
+                    # Stricter filtering conditions
+                    min_size = 20  # Minimum width/height in pixels
+                    max_size_ratio = 0.7  # Maximum box size relative to image
+                    min_aspect_ratio = 0.25  # Minimum w/h ratio
+                    max_aspect_ratio = 4.0  # Maximum w/h ratio
+                    
+                    # Calculate aspect ratio
+                    aspect_ratio = w / h if h > 0 else 0
+                    
+                    # Size relative to image
+                    relative_w = w / IMG_WIDTH
+                    relative_h = h / IMG_HEIGHT
+                    
+                    if (w > min_size and h > min_size and  # Minimum size
+                        w < IMG_WIDTH * max_size_ratio and h < IMG_HEIGHT * max_size_ratio and  # Maximum size
+                        x >= 0 and y >= 0 and  # Position bounds
+                        x + w <= IMG_WIDTH and y + h <= IMG_HEIGHT and  # Position bounds
+                        conf > 0.7 and  # Higher confidence threshold
+                        min_aspect_ratio < aspect_ratio < max_aspect_ratio and  # Reasonable aspect ratio
+                        relative_w < max_size_ratio and relative_h < max_size_ratio):  # Not too large relative to image
+                        filtered_bboxes.append(bbox)
+                    else:
+                        print(f"Filtered out box: size({w:.1f}x{h:.1f}) conf:{conf:.2f} ratio:{aspect_ratio:.2f}")
+                except Exception as e:
+                    print(f"Error processing bbox: {e}")
+                    continue
+            
+            if not filtered_bboxes:
+                print("Warning: No valid bounding boxes after filtering")
+                continue
+                
+            # Use filtered_bboxes instead of bboxes for saving and visualization
+            filename = f'{run_count:04}' + '_' + f'{count:010}'
+            save_image_and_bbox(args.save_dir, filename, frame2numpy(message['frame']), filtered_bboxes)
+            
+            # Update visualization code to use filtered_bboxes
+            bbox_image = add_bboxes(frame2numpy(message['frame'], (IMG_WIDTH,IMG_HEIGHT)), 
+                                  parseBBox_YoloFormatStringToImage(filtered_bboxes))
 
             
         except KeyboardInterrupt:
