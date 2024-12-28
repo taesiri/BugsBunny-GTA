@@ -121,8 +121,8 @@ if __name__ == '__main__':
 
     # SETTINGS
 
-    currentTravelHeight = 40
-    x_start, y_start = -388, 0
+    currentTravelHeight = 60
+    x_start, y_start = -400, 0
     x_target, y_target = 1165, -553
 
 
@@ -188,6 +188,13 @@ if __name__ == '__main__':
                     brake=0.0         # No braking
                 ))
                 print("Commands sent")
+
+                # Send additional forward movement command
+                client.sendMessage(Commands(
+                    throttle=100.0,
+                    steering=0.0,  # Straight ahead
+                    brake=0.0
+                ))
 
                 # Optional: Stop if we're close to target
                 dx = x_target - current_location[0]
