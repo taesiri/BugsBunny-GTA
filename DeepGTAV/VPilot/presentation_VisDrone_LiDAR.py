@@ -25,14 +25,22 @@ import base64
 import open3d
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import win32gui
 
-
+def move_gta_window():
+    # Find GTA V window
+    hwnd = win32gui.FindWindow(None, "Grand Theft Auto V")
+    if hwnd:
+        # Move window to (0,0) and optionally set size
+        win32gui.SetWindowPos(hwnd, None, 0, 0, 1920, 1080, 0)
+        return True
+    return False
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
     parser.add_argument('-p', '--port', default=8000, help='The port where DeepGTAV is running')
-    parser.add_argument('-s', '--save_dir', default='F:\\EXPORTDIR\\VisDrone_LiDAR_presentation_1', help='The directory the generated data is saved to')
+    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_2', help='The directory the generated data is saved to')
     # args = parser.parse_args()
 
     # TODO for running in VSCode
@@ -90,6 +98,12 @@ if __name__ == '__main__':
 
     messages = []
     emptybbox = []
+
+    try:
+        if not move_gta_window():
+            print("Could not find GTA V window")
+    except Exception as e:
+        print(f"Error moving GTA window: {e}")
 
     while True:
         try:
@@ -168,7 +182,7 @@ if __name__ == '__main__':
                 
                 bbox_image = add_bboxes(frame2numpy(message['frame'], (IMG_WIDTH,IMG_HEIGHT)), parseBBox_YoloFormatStringToImage(bboxes))
                 
-                nparr = np.fromstring(base64.b64decode(message["segmentationImage"]), np.uint8)
+                nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
                 segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
 
                 dst = cv2.addWeighted(bbox_image, 0.5, segmentationImage, 0.5, 0.0)
@@ -219,20 +233,11 @@ if __name__ == '__main__':
             if message["DepthBuffer"]!=None and message["DepthBuffer"]!="":
                 print("DepthBuffer")
                 a = np.frombuffer(base64.b64decode(message["DepthBuffer"]), np.float32)
-                a = a.reshape((2160, 3840))
+                # Calculate dimensions: sqrt(2073600) = 1440, so the image is likely 1440x1440
+                a = a.reshape((1440, 1440))
                 
                 a = cv2.normalize(a, None, 0, 255, cv2.NORM_MINMAX)
                 a = np.uint8(a)
-
-                # print('ori', a.max(), a.min())
-                # a = np.delete(a, 0, 1)
-                # a = np.delete(a, 0, 1)
-                # a = np.delete(a, 0, 1)
-                # a = a.reshape(2160, 3840)
-
-                # nparr = np.fromstring(base64.b64decode(message["DepthBuffer"]), np.uint8)
-                # a = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
-
                 print('after', a.max(), a.min())
                 cv2.imwrite(os.path.join(args.save_dir, "depth", filename), a)
             if message["LiDARRaycast"]!=None and message["LiDARRaycast"]!="":
