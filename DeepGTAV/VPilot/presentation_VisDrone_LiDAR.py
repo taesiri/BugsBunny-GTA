@@ -26,6 +26,8 @@ import open3d
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import win32gui
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyplot
 
 def move_gta_window():
     # Find GTA V window
@@ -89,6 +91,8 @@ if __name__ == '__main__':
         os.makedirs(os.path.join(args.save_dir, 'SegmentationAndBBox'))
     if not os.path.exists(os.path.join(args.save_dir, 'LiDAR')):
         os.makedirs(os.path.join(args.save_dir, 'LiDAR'))
+    if not os.path.exists(os.path.join(args.save_dir, 'semantic_vis')):
+        os.makedirs(os.path.join(args.save_dir, 'semantic_vis'))
     
     
         
@@ -185,13 +189,27 @@ if __name__ == '__main__':
                 nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
                 segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
 
+                # Create preview windows
+                cv2.namedWindow("Original with BBoxes", cv2.WINDOW_NORMAL)
+                cv2.namedWindow("Semantic Segmentation", cv2.WINDOW_NORMAL)
+                cv2.namedWindow("Overlay", cv2.WINDOW_NORMAL)
+
+                # Resize windows
+                cv2.resizeWindow("Original with BBoxes", 640, 360)
+                cv2.resizeWindow("Semantic Segmentation", 640, 360)
+                cv2.resizeWindow("Overlay", 640, 360)
+
+                # Show images
+                cv2.imshow("Original with BBoxes", bbox_image)
+                cv2.imshow("Semantic Segmentation", segmentationImage)
+                
                 dst = cv2.addWeighted(bbox_image, 0.5, segmentationImage, 0.5, 0.0)
+                cv2.imshow("Overlay", dst)
+                
+                # Add a small delay to allow windows to update
+                cv2.waitKey(1)
 
-                # cv2.namedWindow("CombinedImage", cv2.WINDOW_NORMAL)
-                # cv2.resizeWindow("CombinedImage", 1280, 720)
-                # cv2.imshow("CombinedImage", dst)
-                # cv2.waitKey(1)
-
+                # Continue with existing saving code...
                 filename = f'{run_count:04}' + '_' + f'{count:010}' + ".png"
                 cv2.imwrite(os.path.join(args.save_dir, "image", filename), bbox_image)
                 cv2.imwrite(os.path.join(args.save_dir, "SegmentationAndBBox", filename), dst)
