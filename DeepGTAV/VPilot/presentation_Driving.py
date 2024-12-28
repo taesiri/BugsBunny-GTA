@@ -26,6 +26,8 @@ import base64
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import win32gui
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyplot
 
 def move_gta_window():
     # Find GTA V window
@@ -186,50 +188,48 @@ if __name__ == '__main__':
 
 
             if message["LiDAR"] != None and message["LiDAR"] != "":
-                # print(message["LiDAR"])
-                a = np.frombuffer(base64.b64decode(message["LiDAR"]), np.float32)
-                # np.save(os.path.join(args.save_dir, "LiDAR", filename[:-4] + ".npy"), a)
+                try:
+                    a = np.frombuffer(base64.b64decode(message["LiDAR"]), np.float32)
+                    a = a.reshape((-1, 4))
 
-                a = a.reshape((-1, 4))
+                    unique_entities, inv = np.unique(a[:, 3], return_inverse=True)
+                    mapping = {k: v for k, v in zip(unique_entities, range(len(unique_entities)))}
+                    vals = np.array([mapping[key] for key in unique_entities])
+                    colors = np.array(vals[inv])
 
-                # Entities are stored in a[:, 3]
-                # produce equally spaced entities for the colors
-                unique_entities, inv = np.unique(a[:, 3], return_inverse=True)
-                mapping = {k: v for k, v in zip(unique_entities, range(len(unique_entities)))}
-                vals = np.array([mapping[key] for key in unique_entities])
-                colors = np.array(vals[inv])
+                    points3d = np.delete(a, 3, 1)
 
-                points3d = np.delete(a, 3, 1)
+                    plt.ioff()  # Turn off interactive mode
+                    fig = plt.figure(figsize=(80,40))
+                    ax = fig.add_subplot(111, projection='3d')
+                    ax.set_xlim([-5, 100])
+                    ax.set_ylim([-40, 40])
+                    ax.set_zlim([-2, 20])
 
-                # point_cloud = open3d.geometry.PointCloud()
-                # point_cloud.points = open3d.utility.Vector3dVector(points3d)
-                # open3d.visualization.draw_geometries([point_cloud])
+                    # ax.view_init(70, 180)
+                    ax.view_init(0, 180)
 
-                fig = plt.figure(figsize=(80,40))
-                ax = fig.add_subplot(111, projection='3d')
-                ax.set_xlim([-5, 100])
-                ax.set_ylim([-40, 40])
-                ax.set_zlim([-2, 20])
+                    ax.get_proj = lambda: np.dot(Axes3D.get_proj(ax), np.diag([10, 1, 1, 1]))
 
-                # ax.view_init(70, 180)
-                ax.view_init(0, 180)
+                    ax.scatter(points3d[:,0], points3d[:,1], points3d[:,2], c=colors, s=1)
 
-                ax.get_proj = lambda: np.dot(Axes3D.get_proj(ax), np.diag([10, 1, 1, 1]))
+                    fig.canvas.draw()
+                    img = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
+                    img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # Note: 4 channels for ARGB
+                    img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)  # Convert ARGB to BGR
+                    height, width = fig.canvas.get_width_height()[::-1]
+                    img = img[int(height * 0.5):int(height * 0.75), int(width * 0.4):int(width * 0.68)]
+                    cv2.namedWindow("LiDAR", cv2.WINDOW_NORMAL)
+                    cv2.imshow("LiDAR",img)
+                    cv2.resizeWindow("LiDAR", int(1920 * (9/10)), int(1080 * (9/10)))
+                    cv2.waitKey(1)
 
-                ax.scatter(points3d[:,0], points3d[:,1], points3d[:,2], c=colors, s=1)
+                    cv2.imwrite(os.path.join(args.save_dir, "LiDAR", filename), img)
 
-                fig.canvas.draw()
-                img = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
-                img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # Note: 4 channels for ARGB
-                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)  # Convert ARGB to BGR
-                height, width = fig.canvas.get_width_height()[::-1]
-                img = img[int(height * 0.5):int(height * 0.75), int(width * 0.4):int(width * 0.68)]
-                cv2.namedWindow("LiDAR", cv2.WINDOW_NORMAL)
-                cv2.imshow("LiDAR",img)
-                cv2.resizeWindow("LiDAR", int(1920 * (9/10)), int(1080 * (9/10)))
-                cv2.waitKey(1)
-
-                cv2.imwrite(os.path.join(args.save_dir, "LiDAR", filename), img)
+                    plt.close(fig)  # Close the figure to free memory
+                except Exception as e:
+                    print(f"Error processing LiDAR data: {e}")
+                    continue
 
             if message["bbox2d"] is None or message["bbox2d"] == "":
                 print("Warning: No bounding box data received")
