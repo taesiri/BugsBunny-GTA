@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 
                 bbox_image = add_bboxes(frame2numpy(message['frame'], (IMG_WIDTH,IMG_HEIGHT)), parseBBox_YoloFormatStringToImage(bboxes))
                 
-                nparr = np.fromstring(base64.b64decode(message["segmentationImage"]), np.uint8)
+                nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
                 segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
 
                 dst = cv2.addWeighted(bbox_image, 0.5, segmentationImage, 0.5, 0.0)
@@ -193,10 +193,10 @@ if __name__ == '__main__':
                 ax.scatter(points3d[:,0], points3d[:,1], points3d[:,2], c=colors, s=1)
 
                 fig.canvas.draw()
-                img = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-                img  = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+                img = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
+                img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # Note: 4 channels for ARGB
+                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)  # Convert ARGB to BGR
                 height, width = fig.canvas.get_width_height()[::-1]
-                img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
                 img = img[int(height * 0.5):int(height * 0.75), int(width * 0.4):int(width * 0.68)]
                 cv2.namedWindow("LiDAR", cv2.WINDOW_NORMAL)
                 cv2.imshow("LiDAR",img)
