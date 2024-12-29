@@ -155,7 +155,7 @@ def main():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
     parser.add_argument('-p', '--port', default=8000, help='The port where DeepGTAV is running')
-    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_11', 
+    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_12', 
                         help='The directory the generated data is saved to')
     args = parser.parse_args('')  # For running in VSCode
     args.save_dir = os.path.normpath(args.save_dir)
@@ -263,16 +263,20 @@ def main():
                                         logging.warning(f"Missing required data: {missing_keys}")
                                         continue
 
-                                    # Maintain low height
+                                    # Maintain very low height with tighter control
                                     estimated_ground_height = message["location"][2] - message["HeightAboveGround"]
-                                    target_height = current_height  # This will now be 3, 5, or 7 meters
+                                    target_height = min(current_height, 5)  # Cap maximum height at 5 meters
                                     
-                                    # Add smoother height adjustment
+                                    # More aggressive height adjustment
                                     current_actual_height = message["HeightAboveGround"]
-                                    if abs(current_actual_height - target_height) > 0.5:  # Only adjust if off by more than 0.5m
+                                    if abs(current_actual_height - target_height) > 0.2:  # Reduced threshold to 0.2m
+                                        new_height = estimated_ground_height + target_height
+                                        # Add a maximum height limit
+                                        new_height = min(new_height, estimated_ground_height + 5)
                                         client.sendMessage(GoToLocation(
                                             loc_x, loc_y, 
-                                            estimated_ground_height + target_height
+                                            new_height,
+                                            duration=0.1  # Faster height adjustment
                                         ))
 
                                     # Process frame if available
