@@ -48,6 +48,14 @@ LOCATIONS = [
     (1165, -553, 400, [25, 40, 100]),  # Beach area
 ]
 
+# Add new constant for camera positions (after other constants)
+CAMERA_POSITIONS = [
+    {'y': -8, 'z': 3, 'rot_x': -15},     # Original (behind)
+    {'y': 8, 'z': 3, 'rot_x': -15},      # Front
+    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': 90},   # Right
+    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': -90},  # Left
+]
+
 def setup_logging():
     """Configure logging"""
     logging.basicConfig(
@@ -145,7 +153,7 @@ def main():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
     parser.add_argument('-p', '--port', default=8000, help='The port where DeepGTAV is running')
-    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_8', 
+    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_9', 
                         help='The directory the generated data is saved to')
     args = parser.parse_args('')  # For running in VSCode
     args.save_dir = os.path.normpath(args.save_dir)
@@ -169,125 +177,128 @@ def main():
             for time_hour, time_min in TIME_PERIODS:
                 for loc_x, loc_y, base_height, heights in LOCATIONS:
                     for current_height in heights:
-                        print(f"\nCapturing configuration:")
-                        print(f"Weather: {weather}")
-                        print(f"Time: {time_hour:02d}:{time_min:02d}")
-                        print(f"Location: ({loc_x}, {loc_y})")
-                        print(f"Height: {current_height}m")
+                        for camera_pos in CAMERA_POSITIONS:
+                            print(f"\nCapturing configuration:")
+                            print(f"Weather: {weather}")
+                            print(f"Time: {time_hour:02d}:{time_min:02d}")
+                            print(f"Location: ({loc_x}, {loc_y})")
+                            print(f"Height: {current_height}m")
+                            print(f"Camera position: {camera_pos}")
 
-                        # Initialize scenario
-                        scenario = Scenario(
-                            drivingMode=0,
-                            vehicle="buzzard",
-                            location=[loc_x, loc_y, base_height]
-                        )
-                        dataset = Dataset(
-                            location=True,
-                            time=True,
-                            exportBBox2D=True,
-                            segmentationImage=True,
-                            exportLiDAR=False,
-                            maxLidarDist=5000,
-                            exportStencilImage=True,
-                            exportLiDARRaycast=False,
-                            exportDepthBuffer=True
-                        )
+                            # Initialize scenario
+                            scenario = Scenario(
+                                drivingMode=0,
+                                vehicle="buzzard",
+                                location=[loc_x, loc_y, base_height]
+                            )
+                            dataset = Dataset(
+                                location=True,
+                                time=True,
+                                exportBBox2D=True,
+                                segmentationImage=True,
+                                exportLiDAR=False,
+                                maxLidarDist=5000,
+                                exportStencilImage=True,
+                                exportLiDARRaycast=False,
+                                exportDepthBuffer=True
+                            )
 
-                        # Start scenario and configure environment
-                        try:
-                            client.sendMessage(Start(scenario=scenario, dataset=dataset))
-                            logging.info("Scenario started successfully")
-                        except Exception as e:
-                            logging.error(f"Failed to start scenario: {str(e)}\n{traceback.format_exc()}")
-                            return
-
-                        try:
-                            client.sendMessage(SetCameraPositionAndRotation(
-                                y=-8,     # Further back
-                                z=3,      # Higher up
-                                rot_x=-15 # Angled down slightly
-                            ))
-                            logging.info("Camera position set successfully")
-                        except Exception as e:
-                            logging.error(f"Failed to set camera position: {str(e)}\n{traceback.format_exc()}")
-                            return
-
-                        client.sendMessage(SetClockTime(time_hour, time_min))
-                        client.sendMessage(SetWeather(weather))
-
-                        # Wait for scene to stabilize
-                        time.sleep(2)
-
-                        count = 0
-                        capture_frames = 30  # Frames to capture per configuration
-
-                        while count < capture_frames:
+                            # Start scenario and configure environment
                             try:
-                                count += 1
-
-                                # Record every 5th frame
-                                if count % 5 == 0:
-                                    client.sendMessage(StartRecording())
-                                elif count % 5 == 1:
-                                    client.sendMessage(StopRecording())
-
-                                message = client.recvMessage()
-                                if message is None:
-                                    logging.warning("Received null message from client")
-                                    continue
-
-                                # Log current position and camera info
-                                if "location" in message and "CameraPosition" in message:
-                                    logging.debug(f"Current location: {message['location']}")
-                                    logging.debug(f"Camera position: {message['CameraPosition']}")
-                                    if "CameraAngle" in message:
-                                        logging.debug(f"Camera angle: {message['CameraAngle']}")
-
-                                # Verify message contents
-                                required_keys = ["segmentationImage", "bbox2d", "frame"]
-                                missing_keys = [key for key in required_keys if key not in message or message[key] is None]
-                                if missing_keys:
-                                    logging.warning(f"Missing required data: {missing_keys}")
-                                    continue
-
-                                # Maintain height
-                                estimated_ground_height = message["location"][2] - message["HeightAboveGround"]
-                                client.sendMessage(GoToLocation(
-                                    loc_x, loc_y, 
-                                    estimated_ground_height + current_height
-                                ))
-
-                                # Process frame if available
-                                if message["segmentationImage"] and message["bbox2d"]:
-                                    # Generate filename with configuration info
-                                    filename = f'{run_count:04}_{weather}_{time_hour:02d}{time_min:02d}_h{current_height:03d}_{count:010}'
-                                    
-                                    # Process bounding boxes
-                                    bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
-                                    frame = frame2numpy(message['frame'])
-                                    bbox_image = add_bboxes(frame, parseBBox_YoloFormatStringToImage(bboxes))
-                                    
-                                    # Save data
-                                    save_image_and_bbox(args.save_dir, filename, frame, bboxes)
-                                    save_meta_data(
-                                        args.save_dir, filename,
-                                        message["location"],
-                                        message["HeightAboveGround"],
-                                        message["CameraPosition"],
-                                        message["CameraAngle"],
-                                        message["time"],
-                                        weather
-                                    )
-
-                                    # Handle visualization
-                                    process_visualization(message, args, filename, bbox_image)
-
-                                # Small delay to prevent overwhelming the system
-                                cv2.waitKey(1)
-
+                                client.sendMessage(Start(scenario=scenario, dataset=dataset))
+                                logging.info("Scenario started successfully")
                             except Exception as e:
-                                logging.error(f"Error in capture loop: {str(e)}\n{traceback.format_exc()}")
-                                continue
+                                logging.error(f"Failed to start scenario: {str(e)}\n{traceback.format_exc()}")
+                                return
+
+                            try:
+                                client.sendMessage(SetCameraPositionAndRotation(
+                                    y=camera_pos['y'],
+                                    z=camera_pos['z'],
+                                    rot_x=camera_pos['rot_x'],
+                                    rot_y=camera_pos.get('rot_y', 0)  # Default to 0 if not specified
+                                ))
+                                logging.info("Camera position set successfully")
+                            except Exception as e:
+                                logging.error(f"Failed to set camera position: {str(e)}\n{traceback.format_exc()}")
+                                return
+
+                            client.sendMessage(SetClockTime(time_hour, time_min))
+                            client.sendMessage(SetWeather(weather))
+
+                            # Wait for scene to stabilize
+                            time.sleep(2)
+
+                            count = 0
+                            capture_frames = 30  # Frames to capture per configuration
+
+                            while count < capture_frames:
+                                try:
+                                    count += 1
+
+                                    # Record every 5th frame
+                                    if count % 5 == 0:
+                                        client.sendMessage(StartRecording())
+                                    elif count % 5 == 1:
+                                        client.sendMessage(StopRecording())
+
+                                    message = client.recvMessage()
+                                    if message is None:
+                                        logging.warning("Received null message from client")
+                                        continue
+
+                                    # Log current position and camera info
+                                    if "location" in message and "CameraPosition" in message:
+                                        logging.debug(f"Current location: {message['location']}")
+                                        logging.debug(f"Camera position: {message['CameraPosition']}")
+                                        if "CameraAngle" in message:
+                                            logging.debug(f"Camera angle: {message['CameraAngle']}")
+
+                                    # Verify message contents
+                                    required_keys = ["segmentationImage", "bbox2d", "frame"]
+                                    missing_keys = [key for key in required_keys if key not in message or message[key] is None]
+                                    if missing_keys:
+                                        logging.warning(f"Missing required data: {missing_keys}")
+                                        continue
+
+                                    # Maintain height
+                                    estimated_ground_height = message["location"][2] - message["HeightAboveGround"]
+                                    client.sendMessage(GoToLocation(
+                                        loc_x, loc_y, 
+                                        estimated_ground_height + current_height
+                                    ))
+
+                                    # Process frame if available
+                                    if message["segmentationImage"] and message["bbox2d"]:
+                                        # Generate filename with configuration info
+                                        filename = f'{run_count:04}_{weather}_{time_hour:02d}{time_min:02d}_h{current_height:03d}_cam{CAMERA_POSITIONS.index(camera_pos)}_{count:010}'
+                                        
+                                        # Process bounding boxes
+                                        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
+                                        frame = frame2numpy(message['frame'])
+                                        bbox_image = add_bboxes(frame, parseBBox_YoloFormatStringToImage(bboxes))
+                                        
+                                        # Save data
+                                        save_image_and_bbox(args.save_dir, filename, frame, bboxes)
+                                        save_meta_data(
+                                            args.save_dir, filename,
+                                            message["location"],
+                                            message["HeightAboveGround"],
+                                            message["CameraPosition"],
+                                            message["CameraAngle"],
+                                            message["time"],
+                                            weather
+                                        )
+
+                                        # Handle visualization
+                                        process_visualization(message, args, filename, bbox_image)
+
+                                    # Small delay to prevent overwhelming the system
+                                    cv2.waitKey(1)
+
+                                except Exception as e:
+                                    logging.error(f"Error in capture loop: {str(e)}\n{traceback.format_exc()}")
+                                    continue
 
     except KeyboardInterrupt:
         print("\nCapture interrupted by user")
