@@ -43,9 +43,9 @@ TIME_PERIODS = [
 # Define multiple locations with their heights
 LOCATIONS = [
     # x, y, base_height, [height_variations]
-    (-388, 0, 15, [5, 10, 15]),    # Original location
-    (245, -998, 15, [5, 10, 15]),  # Downtown
-    (1165, -553, 15, [5, 10, 15]), # Beach area
+    (-388, 0, 5, [3, 5, 7]),      # Original location
+    (245, -998, 5, [3, 5, 7]),    # Downtown
+    (1165, -553, 5, [3, 5, 7]),   # Beach area
 ]
 
 # Add new constant for camera positions (after other constants)
@@ -263,12 +263,17 @@ def main():
                                         logging.warning(f"Missing required data: {missing_keys}")
                                         continue
 
-                                    # Maintain height
+                                    # Maintain low height
                                     estimated_ground_height = message["location"][2] - message["HeightAboveGround"]
-                                    client.sendMessage(GoToLocation(
-                                        loc_x, loc_y, 
-                                        estimated_ground_height + current_height
-                                    ))
+                                    target_height = current_height  # This will now be 3, 5, or 7 meters
+                                    
+                                    # Add smoother height adjustment
+                                    current_actual_height = message["HeightAboveGround"]
+                                    if abs(current_actual_height - target_height) > 0.5:  # Only adjust if off by more than 0.5m
+                                        client.sendMessage(GoToLocation(
+                                            loc_x, loc_y, 
+                                            estimated_ground_height + target_height
+                                        ))
 
                                     # Process frame if available
                                     if message["segmentationImage"] and message["bbox2d"]:
