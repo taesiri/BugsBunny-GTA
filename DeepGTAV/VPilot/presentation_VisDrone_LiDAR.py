@@ -44,19 +44,17 @@ WEATHER_CONDITIONS = [
     'RAIN', 'FOGGY',  'CLEARING'
 ]
 
-# For demo, let's keep it small
-WEATHER_CONDITIONS = [
-    'THUNDER'
-]
-
 TIME_PERIODS = [
     (12, 0),  # Noon
+    (17, 0),  # Evening
+    (22, 0),  # Night
 ]
 
 # Define multiple locations with their heights (no location ID used)
 LOCATIONS = [
     # x, y, base_height, list_of_heights
-    (-33, 1, 135, [15, 15, 7]),      # Single location for testing
+    (-33, 1, 135, [15, 15, 7]),     
+    (100, 3, 11, [6, 2, 7]),     
 ]
 
 # Use only one camera position
@@ -339,7 +337,7 @@ def main():
     parser.add_argument('-p', '--port', default=8000, type=int,
                         help='The port where DeepGTAV is running')
     parser.add_argument('-s', '--save_dir', 
-                        default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_15',
+                        default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_16',
                         help='Directory where generated data is saved')
     args = parser.parse_args()
     args.save_dir = os.path.normpath(args.save_dir)
