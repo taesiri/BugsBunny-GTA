@@ -44,6 +44,11 @@ WEATHER_CONDITIONS = [
     'RAIN', 'FOGGY',  'CLEARING'
 ]
 
+WEATHER_CONDITIONS = [
+    'THUNDER'
+]
+
+
 TIME_PERIODS = [
     (12, 0),  # Noon
     (17, 0),  # Evening
@@ -53,8 +58,15 @@ TIME_PERIODS = [
 # Define multiple locations with their heights (no location ID used)
 LOCATIONS = [
     # x, y, base_height, list_of_heights
-    (-33, 1, 135, [15, 15, 7]),     
     (100, 3, 11, [6, 2, 7]),     
+    (-100, 0, 5, [5, 5, 7]),      # Example location 1
+    (245, -998, 5, [3, 5, 7]),    # Example location 2
+    (1165, -553, 5, [3, 5, 7]),   # Example location 3
+    (-33, 1, 135, [15, 15, 7]),   # Example location 4
+    (100, 3, 11, [6, 2, 7]),      # Example location 5
+    (-100, 0, 5, [5, 5, 7]),      # Example location 6
+    (245, -998, 5, [3, 5, 7]),    # Example location 7
+    (1165, -553, 5, [3, 5, 7]),   # Example location 8
 ]
 
 # Use only one camera position
@@ -100,17 +112,18 @@ def setup_directories(base_dir):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-def process_visualization(message, args, filename, bbox_image=None):
+def process_visualization(message, args, filename, frame):
     """Handle visualization windows and saving visualization data."""
     try:
-        if message["segmentationImage"] is None:
-            logging.warning("Segmentation image is None")
+        if message["segmentationImage"] is None or message["segmentationImage"] == "":
+            logging.warning("Segmentation image is empty or None")
             return
             
-        if message["segmentationImage"] == "":
-            logging.warning("Segmentation image is empty")
-            return
+        # Process bounding boxes first
+        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
+        bbox_image = add_bboxes(frame, parseBBox_YoloFormatStringToImage(bboxes))
 
+        # Process segmentation image
         nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
         segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
         
@@ -272,21 +285,19 @@ def capture_data_for_configuration(
 
                     # Process and save frame
                     if message["segmentationImage"] and message["bbox2d"]:
-                        # Build a filename using run_count, config info, and frame count
                         filename = (
                             f'{run_count:04}_{weather}_'
                             f'{time_hour:02d}{time_min:02d}_h{current_height:03d}_'
                             f'x{int(loc_x)}y{int(loc_y)}_{count:010}'
                         )
 
-                        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
                         frame = frame2numpy(message['frame'])
-                        bbox_image = add_bboxes(
-                            frame,
-                            parseBBox_YoloFormatStringToImage(bboxes)
-                        )
+                        
+                        # Process visualization with the original frame
+                        process_visualization(message, args, filename, frame)
 
                         # Save image, bounding boxes, metadata
+                        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
                         save_image_and_bbox(args.save_dir, filename, frame, bboxes)
                         save_meta_data(
                             args.save_dir, filename,
@@ -297,9 +308,6 @@ def capture_data_for_configuration(
                             message.get("time", {}),
                             weather
                         )
-
-                        # Visualization
-                        process_visualization(message, args, filename, bbox_image)
 
                     # Stop recording after processing the frame
                     client.sendMessage(StopRecording())
@@ -380,12 +388,12 @@ def main():
                             weather=weather,
                             time_hour=time_hour,
                             time_min=time_min,
-                            frames_to_capture=25
+                            frames_to_capture=75
                         )
                         # Wait 10 seconds after each configuration
                         print(f"Done with weather: {weather}, time: {time_hour:02d}:{time_min:02d}, height: {current_height}")
-                        print("Waiting 10 seconds")
-                        time.sleep(10)
+                        print("Waiting 2 seconds")
+                        time.sleep(2)
 
     except KeyboardInterrupt:
         print("\nCapture interrupted by user")
