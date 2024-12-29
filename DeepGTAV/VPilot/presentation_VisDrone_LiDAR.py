@@ -275,8 +275,7 @@ def main():
                                         new_height = min(new_height, estimated_ground_height + 5)
                                         client.sendMessage(GoToLocation(
                                             loc_x, loc_y, 
-                                            new_height,
-                                            duration=0.1  # Faster height adjustment
+                                            new_height
                                         ))
 
                                     # Process frame if available
