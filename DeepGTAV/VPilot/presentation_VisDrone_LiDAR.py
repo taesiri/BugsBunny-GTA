@@ -114,7 +114,7 @@ def main():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
     parser.add_argument('-p', '--port', default=8000, help='The port where DeepGTAV is running')
-    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_4', 
+    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_5', 
                         help='The directory the generated data is saved to')
     args = parser.parse_args('')  # For running in VSCode
     args.save_dir = os.path.normpath(args.save_dir)
