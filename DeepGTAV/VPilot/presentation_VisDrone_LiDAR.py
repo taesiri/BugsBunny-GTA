@@ -43,17 +43,38 @@ TIME_PERIODS = [
 # Define multiple locations with their heights
 LOCATIONS = [
     # x, y, base_height, [height_variations]
-    (-388, 0, 400, [25, 40, 100]),  # Original location
-    (245, -998, 400, [25, 40, 100]),  # Downtown
-    (1165, -553, 400, [25, 40, 100]),  # Beach area
+    (-388, 0, 50, [5, 10, 15]),    # Original location
+    (245, -998, 50, [5, 10, 15]),  # Downtown
+    (1165, -553, 50, [5, 10, 15]), # Beach area
 ]
 
 # Add new constant for camera positions (after other constants)
 CAMERA_POSITIONS = [
-    {'y': -8, 'z': 3, 'rot_x': -15},     # Original (behind)
-    {'y': 8, 'z': 3, 'rot_x': -15},      # Front
-    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': 90},   # Right
-    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': -90},  # Left
+    # Behind views (varying distances and angles)
+    {'y': -8, 'z': 3, 'rot_x': -15, 'rot_y': 0},      # Standard behind view
+    {'y': -12, 'z': 4, 'rot_x': -20, 'rot_y': 0},     # Further back, steeper angle
+    {'y': -6, 'z': 2.5, 'rot_x': -10, 'rot_y': 0},    # Closer, shallower angle
+    
+    # Front views
+    {'y': 8, 'z': 3, 'rot_x': -15, 'rot_y': 180},     # Standard front view
+    {'y': 12, 'z': 4, 'rot_x': -20, 'rot_y': 180},    # Further front, steeper
+    {'y': 6, 'z': 2.5, 'rot_x': -10, 'rot_y': 180},   # Closer front
+    
+    # Side views
+    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': 90},      # Right side
+    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': -90},     # Left side
+    
+    # 45-degree angles
+    {'y': -6, 'z': 3, 'rot_x': -15, 'rot_y': 45},     # Back-right
+    {'y': -6, 'z': 3, 'rot_x': -15, 'rot_y': -45},    # Back-left
+    {'y': 6, 'z': 3, 'rot_x': -15, 'rot_y': 135},     # Front-right
+    {'y': 6, 'z': 3, 'rot_x': -15, 'rot_y': -135},    # Front-left
+    
+    # Higher altitude views
+    {'y': -10, 'z': 5, 'rot_x': -30, 'rot_y': 0},     # High behind
+    {'y': 10, 'z': 5, 'rot_x': -30, 'rot_y': 180},    # High front
+    {'y': 0, 'z': 5, 'rot_x': -30, 'rot_y': 90},      # High right
+    {'y': 0, 'z': 5, 'rot_x': -30, 'rot_y': -90},     # High left
 ]
 
 def setup_logging():
@@ -153,7 +174,7 @@ def main():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
     parser.add_argument('-p', '--port', default=8000, help='The port where DeepGTAV is running')
-    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_9', 
+    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_10', 
                         help='The directory the generated data is saved to')
     args = parser.parse_args('')  # For running in VSCode
     args.save_dir = os.path.normpath(args.save_dir)
