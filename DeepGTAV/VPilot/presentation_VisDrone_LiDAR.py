@@ -39,36 +39,6 @@ matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyp
 # Configuration Constants
 ###############################################################################
 
-WEATHER_CONDITIONS = [
-    'CLEAR', 'EXTRASUNNY', 'CLOUDS', 'OVERCAST',
-    'RAIN', 'FOGGY',  'CLEARING'
-]
-
-WEATHER_CONDITIONS = [
-    'THUNDER'
-]
-
-
-TIME_PERIODS = [
-    (12, 0),  # Noon
-    (17, 0),  # Evening
-    (22, 0),  # Night
-]
-
-# Define multiple locations with their heights (no location ID used)
-LOCATIONS = [
-    # x, y, base_height, list_of_heights
-    (100, 3, 11, [6, 2, 7]),     
-    (-100, 0, 5, [5, 5, 7]),      # Example location 1
-    (245, -998, 5, [3, 5, 7]),    # Example location 2
-    (1165, -553, 5, [3, 5, 7]),   # Example location 3
-    (-33, 1, 135, [15, 15, 7]),   # Example location 4
-    (100, 3, 11, [6, 2, 7]),      # Example location 5
-    (-100, 0, 5, [5, 5, 7]),      # Example location 6
-    (245, -998, 5, [3, 5, 7]),    # Example location 7
-    (1165, -553, 5, [3, 5, 7]),   # Example location 8
-]
-
 # Use only one camera position
 CAMERA_POSITION = {
     'y': 4.5,
@@ -112,18 +82,17 @@ def setup_directories(base_dir):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-def process_visualization(message, args, filename, frame):
+def process_visualization(message, args, filename, bbox_image=None):
     """Handle visualization windows and saving visualization data."""
     try:
-        if message["segmentationImage"] is None or message["segmentationImage"] == "":
-            logging.warning("Segmentation image is empty or None")
+        if message["segmentationImage"] is None:
+            logging.warning("Segmentation image is None")
             return
             
-        # Process bounding boxes first
-        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
-        bbox_image = add_bboxes(frame, parseBBox_YoloFormatStringToImage(bboxes))
+        if message["segmentationImage"] == "":
+            logging.warning("Segmentation image is empty")
+            return
 
-        # Process segmentation image
         nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
         segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
         
@@ -197,17 +166,6 @@ def capture_data_for_configuration(
     """
     This function starts a scenario with the given configuration,
     then captures frames for N (= frames_to_capture) iterations.
-
-    :param client: The global Client instance.
-    :param args: command line arguments (including host, port, save_dir)
-    :param run_count: run count for file naming
-    :param loc_x: x-coordinate of the location
-    :param loc_y: y-coordinate of the location
-    :param base_height: ground level for the location
-    :param current_height: "above ground" height to maintain
-    :param weather: weather condition string
-    :param time_hour, time_min: in-game time to set
-    :param frames_to_capture: number of frames to record
     """
     try:
         print(f"\nCapturing configuration for location ({loc_x}, {loc_y}):")
@@ -245,19 +203,16 @@ def capture_data_for_configuration(
         client.sendMessage(SetClockTime(time_hour, time_min))
         client.sendMessage(SetWeather(weather))
 
-        # Wait for scene to stabilize
+        # Wait for scene to stabilize and start recording
         time.sleep(2)
+        client.sendMessage(StartRecording())
 
         with tqdm(total=frames_to_capture, desc=f"Capturing frames at ({loc_x}, {loc_y})") as pbar:
             for count in range(1, frames_to_capture + 1):
                 try:
-                    # Start recording for this frame
-                    client.sendMessage(StartRecording())
-
                     message = client.recvMessage()
                     if message is None:
                         logging.warning("Received null message from client")
-                        client.sendMessage(StopRecording())  # Make sure to stop recording
                         pbar.update(1)
                         continue
 
@@ -269,35 +224,35 @@ def capture_data_for_configuration(
                     ]
                     if missing_keys:
                         logging.warning(f"Missing required data: {missing_keys}")
-                        client.sendMessage(StopRecording())  # Make sure to stop recording
+                        pbar.update(1)
+                        continue
+                    
+                    if not message["bbox2d"]:
+                        logging.warning(f"bbox2d is empty")
                         pbar.update(1)
                         continue
 
-                    # Height control
-                    estimated_ground_height = message["location"][2] - message["HeightAboveGround"]
+                    # Move the drone for each frame
                     target_height = min(current_height, 5)  # Cap maximum height at 5m
-                    current_actual_height = message["HeightAboveGround"]
-                    if abs(current_actual_height - target_height) > 0.2:
-                        new_height = estimated_ground_height + target_height
-                        # Add a maximum height limit
-                        new_height = min(new_height, estimated_ground_height + 5)
-                        client.sendMessage(GoToLocation(loc_x, loc_y, new_height))
+                    client.sendMessage(GoToLocation(loc_x, loc_y, base_height + target_height))
 
                     # Process and save frame
                     if message["segmentationImage"] and message["bbox2d"]:
+                        # Build a filename using run_count, config info, and frame count
                         filename = (
                             f'{run_count:04}_{weather}_'
                             f'{time_hour:02d}{time_min:02d}_h{current_height:03d}_'
                             f'x{int(loc_x)}y{int(loc_y)}_{count:010}'
                         )
 
+                        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
                         frame = frame2numpy(message['frame'])
-                        
-                        # Process visualization with the original frame
-                        process_visualization(message, args, filename, frame)
+                        bbox_image = add_bboxes(
+                            frame,
+                            parseBBox_YoloFormatStringToImage(bboxes)
+                        )
 
                         # Save image, bounding boxes, metadata
-                        bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
                         save_image_and_bbox(args.save_dir, filename, frame, bboxes)
                         save_meta_data(
                             args.save_dir, filename,
@@ -309,15 +264,14 @@ def capture_data_for_configuration(
                             weather
                         )
 
-                    # Stop recording after processing the frame
-                    client.sendMessage(StopRecording())
+                        # Visualization
+                        process_visualization(message, args, filename, bbox_image)
+
                     cv2.waitKey(1)
                     pbar.update(1)
 
                 except Exception as e:
                     logging.error(f"Error in capture loop: {str(e)}\n{traceback.format_exc()}")
-                    # Make sure to stop recording even if an error occurs
-                    client.sendMessage(StopRecording())
 
         print("Finished capturing frames")
 
@@ -325,6 +279,10 @@ def capture_data_for_configuration(
         logging.error(f"Error in configuration: {str(e)}\n{traceback.format_exc()}")
     finally:
         # Stop the current scenario so we can start a new one next time
+        try:
+            client.sendMessage(StopRecording())  # Stop recording when done
+        except Exception as e:
+            logging.error(f"Error stopping recording: {str(e)}")
         try:
             client.sendMessage(Stop())
         except Exception as e:
@@ -370,30 +328,32 @@ def main():
         client = Client(ip=args.host, port=args.port)
         print("Global client created.\n")
 
-        # Iterate over all locations and configurations
-        for (loc_x, loc_y, base_height, heights) in LOCATIONS:
-            for weather in WEATHER_CONDITIONS:
-                for time_hour, time_min in TIME_PERIODS:
-                    for current_height in heights:
-                        print(f"Capturing for weather: {weather}, time: {time_hour:02d}:{time_min:02d}, height: {current_height}")
-                        # Capture for each configuration
-                        capture_data_for_configuration(
-                            client,
-                            args=args,
-                            run_count=run_count,
-                            loc_x=loc_x,
-                            loc_y=loc_y,
-                            base_height=base_height,
-                            current_height=current_height,
-                            weather=weather,
-                            time_hour=time_hour,
-                            time_min=time_min,
-                            frames_to_capture=75
-                        )
-                        # Wait 10 seconds after each configuration
-                        print(f"Done with weather: {weather}, time: {time_hour:02d}:{time_min:02d}, height: {current_height}")
-                        print("Waiting 2 seconds")
-                        time.sleep(2)
+        #--------------------------------------------------------------------------
+        # SINGLE CONFIGURATION -- Adjust these values as you wish
+        loc_x = 100
+        loc_y = 3
+        base_height = 11
+        current_height = 5
+        weather = 'THUNDER'       # e.g. 'CLEAR', 'RAIN', 'THUNDER'
+        time_hour = 12            # e.g. 12 (noon), 17 (evening), 22 (night)
+        time_min = 0
+        frames_to_capture = 25    # number of frames to capture
+        #--------------------------------------------------------------------------
+
+        # Capture data for the single configuration
+        capture_data_for_configuration(
+            client,
+            args=args,
+            run_count=run_count,
+            loc_x=loc_x,
+            loc_y=loc_y,
+            base_height=base_height,
+            current_height=current_height,
+            weather=weather,
+            time_hour=time_hour,
+            time_min=time_min,
+            frames_to_capture=frames_to_capture
+        )
 
     except KeyboardInterrupt:
         print("\nCapture interrupted by user")
@@ -405,18 +365,27 @@ def main():
             try:
                 print("Stopping any ongoing recording...")
                 client.sendMessage(StopRecording())
+                time.sleep(0.5)  # Brief pause after stopping recording
             except Exception as e:
                 logging.error(f"Error stopping recording: {str(e)}")
 
             try:
-                print("Stopping any active scenario...")
+                print("Stopping active scenario...")
                 client.sendMessage(Stop())
+                time.sleep(1)  # Give GTA time to process stop command
+                
+                # Simplified reset - just return to ground without forcing new scenario
+                print("Returning to ground level...")
+                client.sendMessage(GoToLocation(-75.0, -818.0, 326.0))
+                time.sleep(1)  # Let position update
+                
             except Exception as e:
-                logging.error(f"Error stopping scenario: {str(e)}")
+                logging.error(f"Error during scenario cleanup: {str(e)}")
 
             try:
-                print("Closing global client...")
+                print("Closing client connection...")
                 client.close()
+                time.sleep(0.5)  # Brief pause after closing
             except Exception as e:
                 logging.error(f"Error closing client: {str(e)}")
 
