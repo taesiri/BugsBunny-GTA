@@ -23,6 +23,8 @@ import base64
 import open3d
 import win32gui
 import matplotlib
+import logging
+import traceback
 matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyplot
 
 # Configuration Constants
@@ -46,6 +48,17 @@ LOCATIONS = [
     (1165, -553, 400, [25, 40, 100]),  # Beach area
 ]
 
+def setup_logging():
+    """Configure logging"""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('gtav_capture.log'),
+            logging.StreamHandler()
+        ]
+    )
+
 def move_gta_window():
     # Find GTA V window
     hwnd = win32gui.FindWindow(None, "Grand Theft Auto V")
@@ -59,7 +72,7 @@ def setup_directories(base_dir):
     """Create all necessary directories for data storage"""
     directories = [
         'images', 'labels', 'meta_data', 'image', 'depth',
-        'StencilImage', 'SegmentationAndBBox', 'LiDAR', 'semantic_vis'
+        'StencilImage', 'SegmentationAndBBox', 'semantic_vis'
     ]
     for dir_name in directories:
         dir_path = os.path.join(base_dir, dir_name)
@@ -68,9 +81,21 @@ def setup_directories(base_dir):
 
 def process_visualization(message, args, filename, bbox_image=None):
     """Handle visualization windows and saving visualization data"""
-    if message["segmentationImage"] != None and message["segmentationImage"] != "":
+    try:
+        if message["segmentationImage"] is None:
+            logging.warning("Segmentation image is None")
+            return
+            
+        if message["segmentationImage"] == "":
+            logging.warning("Segmentation image is empty")
+            return
+
         nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
         segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
+        
+        if segmentationImage is None:
+            logging.error("Failed to decode segmentation image")
+            return
 
         # Create and position preview windows
         windows = {
@@ -88,6 +113,9 @@ def process_visualization(message, args, filename, bbox_image=None):
         # Save visualization files
         cv2.imwrite(os.path.join(args.save_dir, "image", f"{filename}.png"), bbox_image)
         cv2.imwrite(os.path.join(args.save_dir, "SegmentationAndBBox", f"{filename}.png"), windows["Overlay"])
+
+    except Exception as e:
+        logging.error(f"Error in process_visualization: {str(e)}\n{traceback.format_exc()}")
 
 def process_lidar(message, args, filename):
     """Process and save LiDAR data"""
@@ -111,10 +139,13 @@ def process_lidar(message, args, filename):
         )
 
 def main():
+    setup_logging()
+    logging.info("Starting capture session")
+    
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
     parser.add_argument('-p', '--port', default=8000, help='The port where DeepGTAV is running')
-    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_5', 
+    parser.add_argument('-s', '--save_dir', default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_8', 
                         help='The directory the generated data is saved to')
     args = parser.parse_args('')  # For running in VSCode
     args.save_dir = os.path.normpath(args.save_dir)
@@ -155,16 +186,32 @@ def main():
                             time=True,
                             exportBBox2D=True,
                             segmentationImage=True,
-                            exportLiDAR=True,
+                            exportLiDAR=False,
                             maxLidarDist=5000,
                             exportStencilImage=True,
-                            exportLiDARRaycast=True,
+                            exportLiDARRaycast=False,
                             exportDepthBuffer=True
                         )
 
                         # Start scenario and configure environment
-                        client.sendMessage(Start(scenario=scenario, dataset=dataset))
-                        client.sendMessage(SetCameraPositionAndRotation(z=-20, rot_x=-90))
+                        try:
+                            client.sendMessage(Start(scenario=scenario, dataset=dataset))
+                            logging.info("Scenario started successfully")
+                        except Exception as e:
+                            logging.error(f"Failed to start scenario: {str(e)}\n{traceback.format_exc()}")
+                            return
+
+                        try:
+                            client.sendMessage(SetCameraPositionAndRotation(
+                                y=-8,     # Further back
+                                z=3,      # Higher up
+                                rot_x=-15 # Angled down slightly
+                            ))
+                            logging.info("Camera position set successfully")
+                        except Exception as e:
+                            logging.error(f"Failed to set camera position: {str(e)}\n{traceback.format_exc()}")
+                            return
+
                         client.sendMessage(SetClockTime(time_hour, time_min))
                         client.sendMessage(SetWeather(weather))
 
@@ -186,6 +233,21 @@ def main():
 
                                 message = client.recvMessage()
                                 if message is None:
+                                    logging.warning("Received null message from client")
+                                    continue
+
+                                # Log current position and camera info
+                                if "location" in message and "CameraPosition" in message:
+                                    logging.debug(f"Current location: {message['location']}")
+                                    logging.debug(f"Camera position: {message['CameraPosition']}")
+                                    if "CameraAngle" in message:
+                                        logging.debug(f"Camera angle: {message['CameraAngle']}")
+
+                                # Verify message contents
+                                required_keys = ["segmentationImage", "bbox2d", "frame"]
+                                missing_keys = [key for key in required_keys if key not in message or message[key] is None]
+                                if missing_keys:
+                                    logging.warning(f"Missing required data: {missing_keys}")
                                     continue
 
                                 # Maintain height
@@ -219,26 +281,26 @@ def main():
 
                                     # Handle visualization
                                     process_visualization(message, args, filename, bbox_image)
-                                    
-                                    # Process LiDAR data
-                                    process_lidar(message, args, filename)
 
                                 # Small delay to prevent overwhelming the system
                                 cv2.waitKey(1)
 
                             except Exception as e:
-                                print(f"Error processing frame {count}: {str(e)}")
+                                logging.error(f"Error in capture loop: {str(e)}\n{traceback.format_exc()}")
                                 continue
 
     except KeyboardInterrupt:
         print("\nCapture interrupted by user")
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        logging.error(f"Unexpected error in main: {str(e)}\n{traceback.format_exc()}")
     finally:
-        # Cleanup
-        client.sendMessage(Stop())
-        client.close()
-        cv2.destroyAllWindows()
+        try:
+            client.sendMessage(Stop())
+            client.close()
+            cv2.destroyAllWindows()
+            logging.info("Cleanup completed successfully")
+        except Exception as e:
+            logging.error(f"Error during cleanup: {str(e)}")
 
 if __name__ == '__main__':
     main()
