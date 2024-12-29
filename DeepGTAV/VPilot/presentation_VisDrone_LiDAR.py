@@ -43,7 +43,7 @@ TIME_PERIODS = [
 # Define multiple locations with their heights
 LOCATIONS = [
     # x, y, base_height, [height_variations]
-    (-388, 0, 5, [3, 5, 7]),      # Original location
+    (-100, 0, 5, [5, 5, 7]),      # Original location
     (245, -998, 5, [3, 5, 7]),    # Downtown
     (1165, -553, 5, [3, 5, 7]),   # Beach area
 ]
