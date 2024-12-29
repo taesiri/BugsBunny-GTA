@@ -50,31 +50,36 @@ LOCATIONS = [
 
 # Add new constant for camera positions (after other constants)
 CAMERA_POSITIONS = [
-    # Behind views (varying distances and angles)
-    {'y': -8, 'z': 3, 'rot_x': -15, 'rot_y': 0},      # Standard behind view
-    {'y': -12, 'z': 4, 'rot_x': -20, 'rot_y': 0},     # Further back, steeper angle
-    {'y': -6, 'z': 2.5, 'rot_x': -10, 'rot_y': 0},    # Closer, shallower angle
+    # First Person Views (new)
+    {'y': 4, 'z': 1.8, 'rot_x': -5, 'rot_y': 180},    # Direct front view, slightly down
+    {'y': 4, 'z': 1.8, 'rot_x': 0, 'rot_y': 180},     # Straight front view
+    {'y': 4, 'z': 1.8, 'rot_x': 5, 'rot_y': 180},     # Front view, slightly up
     
-    # Front views
-    {'y': 8, 'z': 3, 'rot_x': -15, 'rot_y': 180},     # Standard front view
-    {'y': 12, 'z': 4, 'rot_x': -20, 'rot_y': 180},    # Further front, steeper
-    {'y': 6, 'z': 2.5, 'rot_x': -10, 'rot_y': 180},   # Closer front
+    # # Behind views (varying distances and angles)
+    # {'y': -8, 'z': 3, 'rot_x': -15, 'rot_y': 0},      # Standard behind view
+    # {'y': -12, 'z': 4, 'rot_x': -20, 'rot_y': 0},     # Further back, steeper angle
+    # {'y': -6, 'z': 2.5, 'rot_x': -10, 'rot_y': 0},    # Closer, shallower angle
     
-    # Side views
-    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': 90},      # Right side
-    {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': -90},     # Left side
+    # # Front views
+    # {'y': 8, 'z': 3, 'rot_x': -15, 'rot_y': 180},     # Standard front view
+    # {'y': 12, 'z': 4, 'rot_x': -20, 'rot_y': 180},    # Further front, steeper
+    # {'y': 6, 'z': 2.5, 'rot_x': -10, 'rot_y': 180},   # Closer front
     
-    # 45-degree angles
-    {'y': -6, 'z': 3, 'rot_x': -15, 'rot_y': 45},     # Back-right
-    {'y': -6, 'z': 3, 'rot_x': -15, 'rot_y': -45},    # Back-left
-    {'y': 6, 'z': 3, 'rot_x': -15, 'rot_y': 135},     # Front-right
-    {'y': 6, 'z': 3, 'rot_x': -15, 'rot_y': -135},    # Front-left
+    # # Side views
+    # {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': 90},      # Right side
+    # {'y': 0, 'z': 3, 'rot_x': -15, 'rot_y': -90},     # Left side
     
-    # Higher altitude views
-    {'y': -10, 'z': 5, 'rot_x': -30, 'rot_y': 0},     # High behind
-    {'y': 10, 'z': 5, 'rot_x': -30, 'rot_y': 180},    # High front
-    {'y': 0, 'z': 5, 'rot_x': -30, 'rot_y': 90},      # High right
-    {'y': 0, 'z': 5, 'rot_x': -30, 'rot_y': -90},     # High left
+    # # 45-degree angles
+    # {'y': -6, 'z': 3, 'rot_x': -15, 'rot_y': 45},     # Back-right
+    # {'y': -6, 'z': 3, 'rot_x': -15, 'rot_y': -45},    # Back-left
+    # {'y': 6, 'z': 3, 'rot_x': -15, 'rot_y': 135},     # Front-right
+    # {'y': 6, 'z': 3, 'rot_x': -15, 'rot_y': -135},    # Front-left
+    
+    # # Higher altitude views
+    # {'y': -10, 'z': 5, 'rot_x': -30, 'rot_y': 0},     # High behind
+    # {'y': 10, 'z': 5, 'rot_x': -30, 'rot_y': 180},    # High front
+    # {'y': 0, 'z': 5, 'rot_x': -30, 'rot_y': 90},      # High right
+    # {'y': 0, 'z': 5, 'rot_x': -30, 'rot_y': -90},     # High left
 ]
 
 def setup_logging():
