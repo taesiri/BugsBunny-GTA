@@ -12,10 +12,13 @@ import base64
 import numpy as np
 import open3d
 import win32gui
+import win32ui
+import win32con
 from tqdm import tqdm
 from PIL import Image
 from random import uniform
 from math import sqrt
+from ctypes import windll
 
 from deepgtav.messages import (
     Start, Stop, Scenario, Dataset, frame2numpy,
@@ -57,6 +60,54 @@ def move_gta_window():
         win32gui.SetWindowPos(hwnd, None, 0, 0, 1920, 1080, 0)
         return True
     return False
+
+def capture_window():
+    """Capture the GTA V window content."""
+    try:
+        # Find the GTA V window
+        hwnd = win32gui.FindWindow(None, "Grand Theft Auto V")
+        if not hwnd:
+            logging.error("Could not find GTA V window")
+            return None
+
+        # Get window dimensions
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        width = right - left
+        height = bottom - top
+
+        # Create device context and bitmap
+        hwndDC = win32gui.GetWindowDC(hwnd)
+        mfcDC = win32ui.CreateDCFromHandle(hwndDC)
+        saveDC = mfcDC.CreateCompatibleDC()
+        
+        # Create bitmap object and select it into DC
+        saveBitMap = win32ui.CreateBitmap()
+        saveBitMap.CreateCompatibleBitmap(mfcDC, width, height)
+        saveDC.SelectObject(saveBitMap)
+
+        # Copy window content to bitmap
+        result = windll.user32.PrintWindow(hwnd, saveDC.GetSafeHdc(), 3)
+        if result != 1:
+            logging.warning("PrintWindow failed")
+
+        # Convert bitmap to numpy array
+        bmpinfo = saveBitMap.GetInfo()
+        bmpstr = saveBitMap.GetBitmapBits(True)
+        img = np.frombuffer(bmpstr, dtype='uint8')
+        img.shape = (height, width, 4)  # RGBA
+        img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+
+        # Clean up
+        win32gui.DeleteObject(saveBitMap.GetHandle())
+        saveDC.DeleteDC()
+        mfcDC.DeleteDC()
+        win32gui.ReleaseDC(hwnd, hwndDC)
+
+        return img
+
+    except Exception as e:
+        logging.error(f"Error capturing window: {str(e)}\n{traceback.format_exc()}")
+        return None
 
 def setup_directories(base_dir):
     """Create all necessary directories for data storage."""
@@ -235,7 +286,11 @@ def capture_data_for_configuration(
                         )
 
                         bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
-                        frame = frame2numpy(message['frame'])
+                        frame = capture_window()  # Use window capture instead of frame2numpy
+                        if frame is None:
+                            logging.error("Failed to capture window")
+                            continue
+                            
                         bbox_image = add_bboxes(
                             frame,
                             parseBBox_YoloFormatStringToImage(bboxes)
