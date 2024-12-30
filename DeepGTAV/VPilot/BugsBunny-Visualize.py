@@ -99,6 +99,15 @@ def visualize_frame(base_dir, frame_index):
     # Create overlay
     overlay = cv2.addWeighted(bbox_image, 0.7, segmentation_image, 0.3, 0)
 
+    # Calculate window size maintaining aspect ratio
+    max_window_width = 800
+    max_window_height = 600
+    
+    img_height, img_width = original_image.shape[:2]
+    scale = min(max_window_width/img_width, max_window_height/img_height)
+    window_width = int(img_width * scale)
+    window_height = int(img_height * scale)
+
     # Display windows
     windows = {
         "Original with BBoxes": bbox_image,
@@ -107,9 +116,9 @@ def visualize_frame(base_dir, frame_index):
     }
 
     for idx, (name, img) in enumerate(windows.items()):
-        cv2.namedWindow(name, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(name, 800, 600)
-        cv2.moveWindow(name, idx * 820, 0)  # Position windows side by side
+        cv2.namedWindow(name, cv2.WINDOW_KEEPRATIO)
+        cv2.resizeWindow(name, window_width, window_height)
+        cv2.moveWindow(name, idx * (window_width + 20), 0)
         cv2.imshow(name, img)
 
     print("Press 'q' to exit...")
@@ -135,3 +144,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+    #  python .\BugsBunny-Visualize.py C:\Workspace\export_data\sample_0 C:\Workspace\export_data\sample_0\frame_index\0000_CLEARING_1903_h003_x696y3305_0000000005.json
