@@ -1,0 +1,1 @@
+python BugsBunny-Getdata-buzzard.py   --host 127.0.0.1   --port 8000   --save_dir "C:\\Workspace\\export_data\\sample"   --loc_x 200   --loc_y 10   --base_height 15   --current_height 3   --weather CLEAR   --time_hour 17   --time_min 30   --frames_to_capture 50   --cam_y 5.0   --cam_z 2.0   --rot_x 10   --rot_y 0
