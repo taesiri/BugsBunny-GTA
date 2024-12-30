@@ -16,6 +16,7 @@ from tqdm import tqdm
 from PIL import Image
 from random import uniform
 from math import sqrt
+import json
 
 from deepgtav.messages import (
     Start, Stop, Scenario, Dataset, frame2numpy,
@@ -63,7 +64,8 @@ def setup_directories(base_dir):
     directories = [
         'images', 'labels', 'meta_data',
         'image', 'depth', 'StencilImage',
-        'SegmentationAndBBox', 'semantic_vis', 'LiDAR'
+        'SegmentationAndBBox', 'semantic_vis', 'LiDAR',
+        'bbox_json', 'segmentation_json'
     ]
     for dir_name in directories:
         dir_path = os.path.join(base_dir, dir_name)
@@ -80,6 +82,11 @@ def process_visualization(message, args, filename, bbox_image=None):
         if message["segmentationImage"] == "":
             logging.warning("Segmentation image is empty")
             return
+
+        # Save segmentation data as JSON
+        segmentation_json_path = os.path.join(args.save_dir, "segmentation_json", f"{filename}.json")
+        with open(segmentation_json_path, 'w') as f:
+            json.dump({"segmentationImage": message["segmentationImage"]}, f)
 
         nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
         segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
@@ -252,6 +259,11 @@ def capture_data_for_configuration(
                             message.get("time", {}),
                             weather
                         )
+
+                        # Save bounding box data as JSON
+                        bbox_json_path = os.path.join(args.save_dir, "bbox_json", f"{filename}.json")
+                        with open(bbox_json_path, 'w') as f:
+                            json.dump({"bbox2d": message["bbox2d"]}, f)
 
                         # Visualization
                         process_visualization(message, args, filename, bbox_image)
