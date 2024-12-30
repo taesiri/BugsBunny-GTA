@@ -65,12 +65,40 @@ def setup_directories(base_dir):
         'images', 'labels', 'meta_data',
         'image', 'depth', 'StencilImage',
         'SegmentationAndBBox', 'semantic_vis', 'LiDAR',
-        'bbox_json', 'segmentation_json'
+        'bbox_json', 'segmentation_json',
+        'frame_index'  # New directory for frame index files
     ]
     for dir_name in directories:
         dir_path = os.path.join(base_dir, dir_name)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
+
+def save_frame_index(save_dir, frame_data):
+    """Save frame index with file paths."""
+    frame_index_dir = os.path.join(save_dir, "frame_index")
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Create the index entry
+    index_entry = {
+        "frame_id": frame_data["filename"],
+        "files": {
+            "image": f"image/{frame_data['filename']}.png",
+            "bbox": f"labels/{frame_data['filename']}.txt",
+            "bbox_json": f"bbox_json/{frame_data['filename']}.json",
+            "segmentation_json": f"segmentation_json/{frame_data['filename']}.json",
+            "segmentation_overlay": f"SegmentationAndBBox/{frame_data['filename']}.png",
+            "metadata": f"meta_data/{frame_data['filename']}.json",
+            "lidar": f"LiDAR/{frame_data['filename']}.ply"
+        },
+        "timestamp": timestamp
+    }
+    
+    # Save individual frame index
+    index_file = os.path.join(frame_index_dir, f"{frame_data['filename']}.json")
+    with open(index_file, 'w') as f:
+        json.dump(index_entry, f, indent=2)
+    
+    return index_entry
 
 def process_visualization(message, args, filename, bbox_image=None):
     """Handle visualization windows and saving visualization data."""
@@ -141,6 +169,29 @@ def process_lidar(message, args, filename):
             point_cloud
         )
 
+def verify_saved_files(save_dir, filename):
+    """Verify that all expected files were saved."""
+    expected_files = {
+        "image": f"image/{filename}.png",
+        "bbox": f"labels/{filename}.txt",
+        "bbox_json": f"bbox_json/{filename}.json",
+        "segmentation_json": f"segmentation_json/{filename}.json",
+        "segmentation_overlay": f"SegmentationAndBBox/{filename}.png",
+        "metadata": f"meta_data/{filename}.json",
+        "lidar": f"LiDAR/{filename}.ply"
+    }
+    
+    missing_files = []
+    for file_type, path in expected_files.items():
+        full_path = os.path.join(save_dir, path)
+        if not os.path.exists(full_path):
+            missing_files.append(file_type)
+            
+    if missing_files:
+        logging.warning(f"Missing files for frame {filename}: {missing_files}")
+        return False
+    return True
+
 ###############################################################################
 # Capture Function
 ###############################################################################
@@ -203,6 +254,8 @@ def capture_data_for_configuration(
         time.sleep(2)
         client.sendMessage(StartRecording())
 
+        frame_indices = []  # Store all frame indices
+        
         with tqdm(total=frames_to_capture, desc=f"Capturing frames at ({loc_x}, {loc_y})") as pbar:
             for count in range(1, frames_to_capture + 1):
                 try:
@@ -268,6 +321,13 @@ def capture_data_for_configuration(
                         # Visualization
                         process_visualization(message, args, filename, bbox_image)
 
+                        if verify_saved_files(args.save_dir, filename):
+                            frame_data = {"filename": filename}
+                            frame_index = save_frame_index(args.save_dir, frame_data)
+                            frame_indices.append(frame_index)
+                        else:
+                            logging.error(f"Skipping frame index for {filename} due to missing files")
+
                     cv2.waitKey(1)
                     pbar.update(1)
 
@@ -275,6 +335,18 @@ def capture_data_for_configuration(
                     logging.error(f"Error in capture loop: {str(e)}\n{traceback.format_exc()}")
 
         print("Finished capturing frames")
+
+        # Save complete session index
+        session_index = {
+            "session_id": f"session_{int(run_count):04}",
+            "frames": frame_indices,
+            "total_frames": len(frame_indices),
+            "capture_time": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        session_file = os.path.join(args.save_dir, "frame_index", f"session_{int(run_count):04}.json")
+        with open(session_file, 'w') as f:
+            json.dump(session_index, f, indent=2)
 
     except Exception as e:
         logging.error(f"Error in configuration: {str(e)}\n{traceback.format_exc()}")
