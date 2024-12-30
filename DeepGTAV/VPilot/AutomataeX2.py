@@ -10,11 +10,20 @@ import win32process
 import win32com.client
 
 def kill_gta5():
-    """Kill GTA5.exe if it is running."""
-    for proc in psutil.process_iter(['pid', 'name']):
-        if proc.info['name'] and proc.info['name'].lower() == 'gta5.exe':
-            print(f"Killing GTA5.exe (PID: {proc.info['pid']})")
-            proc.kill()
+    """Kill GTA V process if running"""
+    try:
+        # Look for both possible process names
+        for proc in psutil.process_iter(['name']):
+            if proc.info['name'] in ['GTA5.exe', 'GTAV.exe']:
+                print(f"Killing {proc.info['name']}...")
+                proc.kill()
+                proc.wait()  # Wait for the process to actually terminate
+                return True
+        print("GTA V process not found")
+        return False
+    except Exception as e:
+        print(f"Error killing GTA V: {e}")
+        return False
 
 def kill_notepad():
     """Kill Notepad if it is running."""
@@ -101,30 +110,29 @@ def focus_window(window_title, partial_match=True, duration=0.5):
             print(f"  - {title}")
 
 def main():
-    # 1. Launch GTA5 via Steam
-    print("Launching GTA5 via Steam...")
-    # On Windows, you can call 'start steam://rungameid/271590' using cmd
-    # or you can use a direct open command as shown below.
-    subprocess.Popen(["cmd", "/c", "start", "steam://rungameid/271590"], shell=True)
-    
-    # 2. Wait for 10 seconds for initial GTA5 load
-    print("Waiting 25 seconds for initial GTA5 load...")
-    time.sleep(25)
-    
-    # Focus and unfocus GTA V window - try different possible window titles
-    print("Focusing GTA V window...")
-    focus_window("Grand Theft Auto V")
-    focus_window("GTAV")  # Try alternative title
-    focus_window("GTA5")  # Try another alternative
-    
-    # Continue with remaining loading time
-    print("Waiting 15 more seconds for GTA5 to fully load...")
-    time.sleep(15)
-    
     # Number of capture rounds
     num_rounds = 5  # Adjust this number as needed
 
     for round_idx in range(num_rounds):
+        # Launch GTA5 via Steam
+        print(f"\nStarting capture round {round_idx + 1}/{num_rounds}")
+        print("Launching GTA5 via Steam...")
+        subprocess.Popen(["cmd", "/c", "start", "steam://rungameid/271590"], shell=True)
+        
+        # Wait for initial GTA5 load
+        print("Waiting 25 seconds for initial GTA5 load...")
+        time.sleep(25)
+        
+        # Focus and unfocus GTA V window
+        print("Focusing GTA V window...")
+        focus_window("Grand Theft Auto V")
+        focus_window("GTAV")
+        focus_window("GTA5")
+        
+        # Wait for full load
+        print("Waiting 15 more seconds for GTA5 to fully load...")
+        time.sleep(15)
+
         # Generate random location and weather
         loc_x, loc_y, base_height = get_random_location()
         weather = random.choice(WEATHER_CONDITIONS)
@@ -164,7 +172,6 @@ def main():
             "--rot_y", "0"
         ]
         
-        print(f"\nStarting capture round {round_idx + 1}/{num_rounds}")
         print(f"Location: ({loc_x:.1f}, {loc_y:.1f}, {base_height:.1f})")
         print(f"Weather: {weather}")
         print(f"Saving to: {save_dir}")
@@ -173,20 +180,16 @@ def main():
         process.wait()
         print(f"Completed capture round {round_idx + 1}")
 
-        # After capture is complete, kill Notepad
-        print("Closing Notepad...")
+        # Kill both GTA5 and Notepad after capture
+        print("Killing GTA5.exe and Notepad.exe...")
+        kill_gta5()
         kill_notepad()
-        time.sleep(2)  # Wait for Notepad to close completely
+        
+        # Wait between rounds
+        print("Waiting 120 seconds for GTA to fully close...")
+        time.sleep(120)
 
-    # 5. Kill GTA5.exe
-    print("Killing GTA5.exe if running...")
-    kill_gta5()
-    
-    # 6. Wait for 120 seconds after killing GTA
-    print("Waiting 120 seconds for GTA to fully close...")
-    time.sleep(120)
-    
-    print("Done.")
+    print("All capture rounds completed.")
 
 if __name__ == "__main__":
     main()
