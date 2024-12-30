@@ -12,14 +12,10 @@ import base64
 import numpy as np
 import open3d
 import win32gui
-import win32ui
-import win32con
 from tqdm import tqdm
 from PIL import Image
 from random import uniform
 from math import sqrt
-from ctypes import windll
-import json  # Add to imports at the top
 
 from deepgtav.messages import (
     Start, Stop, Scenario, Dataset, frame2numpy,
@@ -62,79 +58,17 @@ def move_gta_window():
         return True
     return False
 
-def capture_window():
-    """Capture the GTA V window content."""
-    try:
-        # Find the GTA V window
-        hwnd = win32gui.FindWindow(None, "Grand Theft Auto V")
-        if not hwnd:
-            logging.error("Could not find GTA V window")
-            return None
-
-        # Get window dimensions
-        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-        width = right - left
-        height = bottom - top
-
-        # Create device context and bitmap
-        hwndDC = win32gui.GetWindowDC(hwnd)
-        mfcDC = win32ui.CreateDCFromHandle(hwndDC)
-        saveDC = mfcDC.CreateCompatibleDC()
-        
-        # Create bitmap object and select it into DC
-        saveBitMap = win32ui.CreateBitmap()
-        saveBitMap.CreateCompatibleBitmap(mfcDC, width, height)
-        saveDC.SelectObject(saveBitMap)
-
-        # Copy window content to bitmap
-        result = windll.user32.PrintWindow(hwnd, saveDC.GetSafeHdc(), 3)
-        if result != 1:
-            logging.warning("PrintWindow failed")
-
-        # Convert bitmap to numpy array
-        bmpinfo = saveBitMap.GetInfo()
-        bmpstr = saveBitMap.GetBitmapBits(True)
-        img = np.frombuffer(bmpstr, dtype='uint8')
-        img.shape = (height, width, 4)  # RGBA
-        img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
-
-        # Clean up
-        win32gui.DeleteObject(saveBitMap.GetHandle())
-        saveDC.DeleteDC()
-        mfcDC.DeleteDC()
-        win32gui.ReleaseDC(hwnd, hwndDC)
-
-        return img
-
-    except Exception as e:
-        logging.error(f"Error capturing window: {str(e)}\n{traceback.format_exc()}")
-        return None
-
 def setup_directories(base_dir):
     """Create all necessary directories for data storage."""
     directories = [
         'images', 'labels', 'meta_data',
         'image', 'depth', 'StencilImage',
-        'SegmentationAndBBox', 'semantic_vis', 'LiDAR',
-        'bbox_json', 'segmentation_json'  # Add new directories
+        'SegmentationAndBBox', 'semantic_vis', 'LiDAR'
     ]
     for dir_name in directories:
         dir_path = os.path.join(base_dir, dir_name)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
-
-def save_json_data(save_dir, filename, bbox_data, segmentation_data=None):
-    """Save bounding box and segmentation data to JSON files."""
-    # Save bounding boxes
-    bbox_json_path = os.path.join(save_dir, 'bbox_json', f"{filename}.json")
-    with open(bbox_json_path, 'w') as f:
-        json.dump(bbox_data, f, indent=4)
-
-    # Save segmentation data if available
-    if segmentation_data is not None:
-        seg_json_path = os.path.join(save_dir, 'segmentation_json', f"{filename}.json")
-        with open(seg_json_path, 'w') as f:
-            json.dump(segmentation_data, f, indent=4)
 
 def process_visualization(message, args, filename, bbox_image=None):
     """Handle visualization windows and saving visualization data."""
@@ -175,17 +109,6 @@ def process_visualization(message, args, filename, bbox_image=None):
             os.path.join(args.save_dir, "SegmentationAndBBox", f"{filename}.png"),
             overlay
         )
-
-        # Save segmentation data as JSON
-        segmentation_data = {
-            "raw_segmentation": message.get("segmentationImage", ""),  # Base64 encoded string
-            "timestamp": time.time(),
-            "image_size": {
-                "width": IMG_WIDTH,
-                "height": IMG_HEIGHT
-            }
-        }
-        save_json_data(args.save_dir, filename, None, segmentation_data)
 
     except Exception as e:
         logging.error(f"Error in process_visualization: {str(e)}\n{traceback.format_exc()}")
@@ -312,11 +235,7 @@ def capture_data_for_configuration(
                         )
 
                         bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
-                        frame = capture_window()  # Use window capture instead of frame2numpy
-                        if frame is None:
-                            logging.error("Failed to capture window")
-                            continue
-                            
+                        frame = frame2numpy(message['frame'])
                         bbox_image = add_bboxes(
                             frame,
                             parseBBox_YoloFormatStringToImage(bboxes)
@@ -336,19 +255,6 @@ def capture_data_for_configuration(
 
                         # Visualization
                         process_visualization(message, args, filename, bbox_image)
-
-                        # Process and save bounding boxes as JSON
-                        bbox_data = {
-                            "bboxes": message["bbox2d"],
-                            "format": "VisDrone",
-                            "parsed_bboxes": bboxes,
-                            "timestamp": time.time(),
-                            "image_size": {
-                                "width": IMG_WIDTH,
-                                "height": IMG_HEIGHT
-                            }
-                        }
-                        save_json_data(args.save_dir, filename, bbox_data)
 
                     cv2.waitKey(1)
                     pbar.update(1)
