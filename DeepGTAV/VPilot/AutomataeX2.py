@@ -26,18 +26,26 @@ def kill_gta5():
         return False
 
 def kill_notepad():
-    """Kill Notepad if it is running."""
+    """Kill all running Notepad instances."""
     try:
+        killed_count = 0
         for proc in psutil.process_iter(['pid', 'name']):
             if proc.info['name'] and proc.info['name'].lower() == 'notepad.exe':
                 try:
                     print(f"Killing Notepad.exe (PID: {proc.info['pid']})")
                     proc.kill()
                     proc.wait(timeout=3)  # Wait up to 3 seconds for the process to terminate
+                    killed_count += 1
                 except (psutil.NoSuchProcess, psutil.TimeoutExpired) as e:
                     print(f"Process already terminated or timeout reached: {e}")
                 except Exception as e:
                     print(f"Error killing Notepad: {e}")
+        
+        if killed_count > 0:
+            print(f"Successfully killed {killed_count} Notepad instance(s)")
+        else:
+            print("No Notepad processes found")
+            
     except Exception as e:
         print(f"Error iterating processes: {e}")
 
@@ -147,7 +155,7 @@ def main():
         weather = random.choice(WEATHER_CONDITIONS)
         
         # Create indexed directory for this round
-        save_dir = f"C:\\Workspace\\export_data\\record_2\sample_{round_idx}"
+        save_dir = f"C:\\Workspace\\export_data\\record_3\sample_{round_idx}"
         os.makedirs(save_dir, exist_ok=True)
 
         # Open Notepad with a dummy file
