@@ -27,10 +27,19 @@ def kill_gta5():
 
 def kill_notepad():
     """Kill Notepad if it is running."""
-    for proc in psutil.process_iter(['pid', 'name']):
-        if proc.info['name'] and proc.info['name'].lower() == 'notepad.exe':
-            print(f"Killing Notepad.exe (PID: {proc.info['pid']})")
-            proc.kill()
+    try:
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] and proc.info['name'].lower() == 'notepad.exe':
+                try:
+                    print(f"Killing Notepad.exe (PID: {proc.info['pid']})")
+                    proc.kill()
+                    proc.wait(timeout=3)  # Wait up to 3 seconds for the process to terminate
+                except (psutil.NoSuchProcess, psutil.TimeoutExpired) as e:
+                    print(f"Process already terminated or timeout reached: {e}")
+                except Exception as e:
+                    print(f"Error killing Notepad: {e}")
+    except Exception as e:
+        print(f"Error iterating processes: {e}")
 
 # Add list of valid weather conditions
 WEATHER_CONDITIONS = [
@@ -111,7 +120,7 @@ def focus_window(window_title, partial_match=True, duration=0.5):
 
 def main():
     # Number of capture rounds
-    num_rounds = 5  # Adjust this number as needed
+    num_rounds = 100  # Adjust this number as needed
 
     for round_idx in range(num_rounds):
         # Launch GTA5 via Steam
@@ -138,7 +147,7 @@ def main():
         weather = random.choice(WEATHER_CONDITIONS)
         
         # Create indexed directory for this round
-        save_dir = f"C:\\Workspace\\export_data\\sample_{round_idx}"
+        save_dir = f"C:\\Workspace\\export_data\\record_2\sample_{round_idx}"
         os.makedirs(save_dir, exist_ok=True)
 
         # Open Notepad with a dummy file
