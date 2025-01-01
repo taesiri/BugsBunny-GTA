@@ -390,7 +390,7 @@ def main():
 
         # Prepare scenario with manual driving => we send Commands ourselves
         scenario = Scenario(
-            drivingMode=1,  # Accept manual commands from Python
+            drivingMode=-1,  # Accept manual commands from Python
             vehicle="comet2",  # Example car
             location=[args.loc_x, args.loc_y, 0.0]  # Spawn location on ground
         )

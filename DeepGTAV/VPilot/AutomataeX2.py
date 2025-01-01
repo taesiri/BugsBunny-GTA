@@ -155,7 +155,7 @@ def main():
         weather = random.choice(WEATHER_CONDITIONS)
         
         # Create indexed directory for this round
-        save_dir = f"C:\\Workspace\\export_data\\record_3\sample_{round_idx}"
+        save_dir = f"C:\\Workspace\\export_data\\record_1\sample_{round_idx}"
         os.makedirs(save_dir, exist_ok=True)
 
         # Open Notepad with a dummy file
@@ -171,7 +171,7 @@ def main():
         time.sleep(2)
 
         capture_args = [
-            "python", "BugsBunny-Getdata-buzzard.py",
+            "python", "BugsBunny-Getdata-Car.py",
             "--host", "127.0.0.1",
             "--port", "8000",
             "--save_dir", save_dir,
