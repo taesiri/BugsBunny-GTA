@@ -355,7 +355,7 @@ def main():
     parser.add_argument('--time_min', type=int, default=0, help='Minutes of the day (0-59)')
 
     # Capture parameters
-    parser.add_argument('--frames_to_capture', type=int, default=50, 
+    parser.add_argument('--frames_to_capture', type=int, default=100, 
                         help='Number of frames to capture in self-driving loop')
 
     # Camera offsets
@@ -390,7 +390,7 @@ def main():
 
         # Prepare scenario with manual driving => we send Commands ourselves
         scenario = Scenario(
-            drivingMode=-1,  # Accept manual commands from Python
+            drivingMode=1,  # Accept manual commands from Python
             vehicle="comet2",  # Example car
             location=[args.loc_x, args.loc_y, 0.0]  # Spawn location on ground
         )
