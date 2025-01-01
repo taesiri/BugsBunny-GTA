@@ -14,17 +14,16 @@ import open3d
 import win32gui
 from tqdm import tqdm
 from PIL import Image
-from random import uniform
-from math import sqrt
 import json
 
 from deepgtav.messages import (
     Start, Stop, Scenario, Dataset, frame2numpy,
-    GoToLocation, SetCameraPositionAndRotation,
+    Commands, GoToLocation, SetCameraPositionAndRotation,
     StartRecording, StopRecording, SetClockTime, SetWeather
 )
 from deepgtav.client import Client
 
+# Local utility imports (adjust to your project structure)
 from utils.Constants import IMG_WIDTH, IMG_HEIGHT
 from utils.BoundingBoxes import (
     add_bboxes, parseBBoxesVisDroneStyle, parseBBox_YoloFormatStringToImage
@@ -34,7 +33,20 @@ from utils.utils import (
     getRunCount
 )
 
-matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyplot
+matplotlib.use('Agg')  # Use non-interactive backend
+
+###############################################################################
+# Example Self-Driving Model
+###############################################################################
+class Model:
+    """
+    A dummy agent that always drives straight at full throttle.
+    You can replace 'run' with your own prediction logic.
+    """
+    def run(self, frame):
+        # e.g. [throttle, brake, steering]
+        # throttle=1.0 means full gas, brake=0.0 means no brake, steering=0.0 means go straight
+        return [1.0, 0.0, 0.0]
 
 ###############################################################################
 # Helper Functions
@@ -66,7 +78,7 @@ def setup_directories(base_dir):
         'image', 'depth', 'StencilImage',
         'SegmentationAndBBox', 'semantic_vis', 'LiDAR',
         'bbox_json', 'segmentation_json',
-        'frame_index'  # New directory for frame index files
+        'frame_index'
     ]
     for dir_name in directories:
         dir_path = os.path.join(base_dir, dir_name)
@@ -77,8 +89,7 @@ def save_frame_index(save_dir, frame_data):
     """Save frame index with file paths."""
     frame_index_dir = os.path.join(save_dir, "frame_index")
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Create the index entry
+
     index_entry = {
         "frame_id": frame_data["filename"],
         "files": {
@@ -92,70 +103,68 @@ def save_frame_index(save_dir, frame_data):
         },
         "timestamp": timestamp
     }
-    
-    # Save individual frame index
+
     index_file = os.path.join(frame_index_dir, f"{frame_data['filename']}.json")
     with open(index_file, 'w') as f:
         json.dump(index_entry, f, indent=2)
-    
+
     return index_entry
 
 def process_visualization(message, args, filename, bbox_image=None):
-    """Handle visualization windows and saving visualization data."""
+    """Handle visualization windows and saving segmentation overlay."""
     try:
-        if message["segmentationImage"] is None:
-            logging.warning("Segmentation image is None")
-            return
-            
-        if message["segmentationImage"] == "":
-            logging.warning("Segmentation image is empty")
+        seg_str = message.get("segmentationImage", "")
+        if not seg_str:
+            logging.warning("Segmentation image is None or empty")
             return
 
         # Save segmentation data as JSON
         segmentation_json_path = os.path.join(args.save_dir, "segmentation_json", f"{filename}.json")
         with open(segmentation_json_path, 'w') as f:
-            json.dump({"segmentationImage": message["segmentationImage"]}, f)
+            json.dump({"segmentationImage": seg_str}, f)
 
-        nparr = np.frombuffer(base64.b64decode(message["segmentationImage"]), np.uint8)
+        # Decode segmentation image from base64
+        nparr = np.frombuffer(base64.b64decode(seg_str), np.uint8)
         segmentationImage = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
         
         if segmentationImage is None:
             logging.error("Failed to decode segmentation image")
             return
 
-        # Create and position preview windows
+        # Create overlay
         overlay = cv2.addWeighted(bbox_image, 0.5, segmentationImage, 0.5, 0.0)
-        windows = {
-            "Original with BBoxes": bbox_image,
-            "Semantic Segmentation": segmentationImage,
-            "Overlay": overlay
-        }
 
-        for idx, (name, img) in enumerate(windows.items()):
-            cv2.namedWindow(name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(name, 640, 360)
-            # Offsets for a second monitor, adjust as needed
-            cv2.moveWindow(name, 1920 + (50 if idx < 2 else 740), 50 + (410 * (idx % 2)))
-            cv2.imshow(name, img)
+        # (Optional) Display windows if you want real-time previews
+        # You can comment these out if running headless or uninterested in previews.
+        cv2.namedWindow("Original with BBoxes", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Original with BBoxes", 640, 360)
+        cv2.imshow("Original with BBoxes", bbox_image)
+
+        cv2.namedWindow("Semantic Segmentation", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Semantic Segmentation", 640, 360)
+        cv2.imshow("Semantic Segmentation", segmentationImage)
+
+        cv2.namedWindow("Overlay", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Overlay", 640, 360)
+        cv2.imshow("Overlay", overlay)
 
         # Save visualization files
         cv2.imwrite(os.path.join(args.save_dir, "image", f"{filename}.png"), bbox_image)
-        cv2.imwrite(
-            os.path.join(args.save_dir, "SegmentationAndBBox", f"{filename}.png"),
-            overlay
-        )
+        cv2.imwrite(os.path.join(args.save_dir, "SegmentationAndBBox", f"{filename}.png"), overlay)
 
     except Exception as e:
         logging.error(f"Error in process_visualization: {str(e)}\n{traceback.format_exc()}")
 
 def process_lidar(message, args, filename):
-    """Process and save LiDAR data (if enabled in Dataset)."""
-    if message["LiDAR"] != None and message["LiDAR"] != "":
-        points_data = np.frombuffer(base64.b64decode(message["LiDAR"]), np.float32)
+    """Process and save LiDAR data if available."""
+    lidar_str = message.get("LiDAR", "")
+    if lidar_str:
+        points_data = np.frombuffer(base64.b64decode(lidar_str), np.float32)
+        # shape: Nx4 => remove intensity channel => Nx3
         points3d = np.delete(points_data.reshape((-1, 4)), 3, 1)
 
         # Create color gradient based on height
-        z_norm = (points3d[:, 0] - points3d[:, 0].min()) / (points3d[:, 0].max() - points3d[:, 0].min())
+        z_norm = (points3d[:, 0] - points3d[:, 0].min()) / (points3d[:, 0].max() - points3d[:, 0].min() + 1e-6)
         colors = np.zeros((points3d.shape[0], 3))
         colors[:, 0] = z_norm
         colors[:, 2] = 1 - z_norm
@@ -164,10 +173,8 @@ def process_lidar(message, args, filename):
         point_cloud = open3d.geometry.PointCloud()
         point_cloud.points = open3d.utility.Vector3dVector(points3d)
         point_cloud.colors = open3d.utility.Vector3dVector(colors)
-        open3d.io.write_point_cloud(
-            os.path.join(args.save_dir, "LiDAR", filename.replace('.png', '.ply')),
-            point_cloud
-        )
+        lidar_path = os.path.join(args.save_dir, "LiDAR", f"{filename}.ply")
+        open3d.io.write_point_cloud(lidar_path, point_cloud)
 
 def verify_saved_files(save_dir, filename):
     """Verify that all expected files were saved."""
@@ -193,75 +200,28 @@ def verify_saved_files(save_dir, filename):
     return True
 
 ###############################################################################
-# Capture Function
+# Capture + Self-Driving Loop
 ###############################################################################
 
-def capture_data_for_configuration(
+def capture_and_drive(
     client,
     args,
     run_count,
-    loc_x,
-    loc_y,
-    base_height,
-    current_height,
-    weather,
-    time_hour,
-    time_min,
-    camera_position,
-    frames_to_capture=25
+    model,
+    frames_to_capture=100
 ):
     """
-    This function starts a scenario with the given configuration,
-    then captures frames for N (= frames_to_capture) iterations.
-    
-    For a self-driving car:
-      - We set 'drivingMode=1'.
-      - We ignore the base_height/current_height parameters (they're just placeholders here).
-      - We call GoToLocation on the ground level.
+    Combined function to:
+     - Receive frames from DeepGTAV.
+     - Run a "self-driving" model to produce throttle, brake, steering commands.
+     - Save bounding boxes, segmentation, metadata, etc.
     """
     try:
-        print(f"\nCapturing configuration at location ({loc_x}, {loc_y}):")
-        print(f" - Weather: {weather}")
-        print(f" - Time: {time_hour:02d}:{time_min:02d}")
-        print(f" - (Car scenario ignores altitude parameters)")
-        print(f" - Camera position: {camera_position}")
+        print(f"\nStarting capture and self-driving loop with {frames_to_capture} frames...")
 
-        # Initialize scenario with self-driving car
-        scenario = Scenario(
-            drivingMode=1,  # <-- This enables the self-driving/autonomous mode
-            vehicle="comet2",  # <-- Example sports car in GTA
-            location=[loc_x, loc_y, 0.0]  # Car spawns on the ground
-        )
-        dataset = Dataset(
-            location=True,
-            time=True,
-            exportBBox2D=True,
-            segmentationImage=True,
-            exportLiDAR=False,
-            maxLidarDist=5000,
-            exportStencilImage=True,
-            exportLiDARRaycast=False,
-            exportDepthBuffer=True
-        )
+        frame_indices = []
 
-        # Start scenario and configure environment
-        client.sendMessage(Start(scenario=scenario, dataset=dataset))
-        client.sendMessage(SetCameraPositionAndRotation(
-            y=camera_position['y'],
-            z=camera_position['z'],
-            rot_x=camera_position['rot_x'],
-            rot_y=camera_position['rot_y']
-        ))
-        client.sendMessage(SetClockTime(time_hour, time_min))
-        client.sendMessage(SetWeather(weather))
-
-        # Wait for scene to stabilize and start recording
-        time.sleep(2)
-        client.sendMessage(StartRecording())
-
-        frame_indices = []  # Store all frame indices
-        
-        with tqdm(total=frames_to_capture, desc=f"Capturing frames at ({loc_x}, {loc_y})") as pbar:
+        with tqdm(total=frames_to_capture, desc="Capturing frames") as pbar:
             for count in range(1, frames_to_capture + 1):
                 try:
                     message = client.recvMessage()
@@ -270,105 +230,105 @@ def capture_data_for_configuration(
                         pbar.update(1)
                         continue
 
-                    # Check if we have essential data
-                    required_keys = ["segmentationImage", "bbox2d", "frame"]
-                    missing_keys = [
-                        key for key in required_keys
-                        if key not in message or message[key] is None
-                    ]
-                    if missing_keys:
-                        logging.warning(f"Missing required data: {missing_keys}")
+                    # Basic checks
+                    if "frame" not in message or message["frame"] is None:
+                        logging.warning("No frame data in message")
                         pbar.update(1)
                         continue
+
+                    # 1) RUN MODEL (Vehicle Control)
+                    # Convert image to (320, 160) or your CNN input dimension if desired
+                    # For demonstration, let's assume we just use the raw frame with shape (IMG_HEIGHT, IMG_WIDTH)
+                    # or you can do: frame_model = frame2numpy(message["frame"], (320, 160))
+                    # For now, let's decode the original resolution to do the bounding box overlay
+                    full_frame = frame2numpy(message["frame"])
                     
-                    if not message["bbox2d"]:
-                        logging.warning(f"bbox2d is empty")
-                        pbar.update(1)
-                        continue
+                    # In a real ML scenario, you'd resize or do transformations for the model input
+                    commands = model.run(full_frame)  # e.g. [throttle, brake, steering]
+                    if len(commands) == 3:
+                        client.sendMessage(Commands(*commands))
+                    else:
+                        logging.warning(f"Model returned unexpected commands: {commands}")
 
-                    # Example logic to move the car around: you could vary loc_x, loc_y
-                    # or call GoToLocation with an offset on each frame.
-                    # Here we just call the same location to let the self-driving AI handle movement.
-                    client.sendMessage(GoToLocation(loc_x, loc_y, 0.0))
+                    # 2) CAPTURE + SAVE bounding boxes, segmentation, etc.
+                    if "bbox2d" not in message or not message["bbox2d"]:
+                        # Even if no bounding boxes, let's keep capturing frames
+                        logging.warning("bbox2d is empty or missing")
+                    
+                    # Build a filename for saving
+                    filename = (
+                        f'{int(run_count):04}_'
+                        f'{args.weather}_'
+                        f'{args.time_hour:02d}{args.time_min:02d}_'
+                        f'CAR_{count:06d}'
+                    )
 
-                    # Process and save frame
-                    if message["segmentationImage"] and message["bbox2d"]:
-                        # Build a filename using run_count, config info, and frame count
-                        filename = (
-                            f'{int(run_count):04}_{weather}_'
-                            f'{time_hour:02d}{time_min:02d}_CAR_'
-                            f'x{int(loc_x)}y{int(loc_y)}_{count:010}'
-                        )
-
+                    # Save bounding boxes
+                    if "bbox2d" in message and message["bbox2d"]:
                         bboxes = parseBBoxesVisDroneStyle(message["bbox2d"])
-                        frame = frame2numpy(message['frame'])
                         bbox_image = add_bboxes(
-                            frame,
+                            full_frame,
                             parseBBox_YoloFormatStringToImage(bboxes)
                         )
+                    else:
+                        bbox_image = full_frame  # No bboxes, just keep original frame
 
-                        # Save image, bounding boxes, metadata
-                        save_image_and_bbox(args.save_dir, filename, frame, bboxes)
-                        save_meta_data(
-                            args.save_dir, filename,
-                            message["location"],
-                            message.get("HeightAboveGround", 0),
-                            message.get("CameraPosition", {}),
-                            message.get("CameraAngle", {}),
-                            message.get("time", {}),
-                            weather
-                        )
+                    # Save image & bounding box file
+                    save_image_and_bbox(args.save_dir, filename, full_frame, 
+                                       parseBBoxesVisDroneStyle(message.get("bbox2d", [])))
+                    
+                    # Save metadata (location, time, camera info, etc.)
+                    save_meta_data(
+                        args.save_dir, filename,
+                        message.get("location", {}),
+                        message.get("HeightAboveGround", 0),
+                        message.get("CameraPosition", {}),
+                        message.get("CameraAngle", {}),
+                        message.get("time", {}),
+                        args.weather
+                    )
 
-                        # Save bounding box data as JSON
-                        bbox_json_path = os.path.join(args.save_dir, "bbox_json", f"{filename}.json")
-                        with open(bbox_json_path, 'w') as f:
-                            json.dump({"bbox2d": message["bbox2d"]}, f)
+                    # Save bounding boxes as JSON
+                    bbox_json_path = os.path.join(args.save_dir, "bbox_json", f"{filename}.json")
+                    with open(bbox_json_path, 'w') as f:
+                        json.dump({"bbox2d": message.get("bbox2d", [])}, f)
 
-                        # Visualization
-                        process_visualization(message, args, filename, bbox_image)
+                    # Process visualization (overlay segmentation if present)
+                    process_visualization(message, args, filename, bbox_image)
 
-                        # Optional: process LiDAR if you want to enable it in the dataset
-                        # process_lidar(message, args, filename)
+                    # (Optional) Process LiDAR if exportLiDAR=True in Dataset
+                    # process_lidar(message, args, filename)
 
-                        if verify_saved_files(args.save_dir, filename):
-                            frame_data = {"filename": filename}
-                            frame_index = save_frame_index(args.save_dir, frame_data)
-                            frame_indices.append(frame_index)
-                        else:
-                            logging.error(f"Skipping frame index for {filename} due to missing files")
+                    # 3) Verify and add to frame index
+                    if verify_saved_files(args.save_dir, filename):
+                        frame_data = {"filename": filename}
+                        frame_index = save_frame_index(args.save_dir, frame_data)
+                        frame_indices.append(frame_index)
+                    else:
+                        logging.error(f"Missing files for {filename}, skipping index")
 
+                    # Step progress
                     cv2.waitKey(1)
                     pbar.update(1)
 
                 except Exception as e:
                     logging.error(f"Error in capture loop: {str(e)}\n{traceback.format_exc()}")
+        
+        print("Capture/self-driving loop finished.")
 
-        print("Finished capturing frames")
-
-        # Save complete session index
+        # Save a session index for all frames
         session_index = {
             "session_id": f"session_{int(run_count):04}",
             "frames": frame_indices,
             "total_frames": len(frame_indices),
             "capture_time": time.strftime("%Y-%m-%d %H:%M:%S")
         }
-        
         session_file = os.path.join(args.save_dir, "frame_index", f"session_{int(run_count):04}.json")
         with open(session_file, 'w') as f:
             json.dump(session_index, f, indent=2)
 
     except Exception as e:
-        logging.error(f"Error in configuration: {str(e)}\n{traceback.format_exc()}")
-    finally:
-        # Stop the current scenario so we can start a new one next time
-        try:
-            client.sendMessage(StopRecording())  # Stop recording when done
-        except Exception as e:
-            logging.error(f"Error stopping recording: {str(e)}")
-        try:
-            client.sendMessage(Stop())
-        except Exception as e:
-            logging.error(f"Error stopping scenario: {str(e)}")
+        logging.error(f"Error in capture_and_drive: {str(e)}\n{traceback.format_exc()}")
 
 
 ###############################################################################
@@ -377,68 +337,42 @@ def capture_data_for_configuration(
 
 def main():
     setup_logging()
-    logging.info("Starting capture session (Self-Driving Car)")
+    logging.info("Starting capture session (Self-Driving with Python commands)")
 
-    parser = argparse.ArgumentParser(description="Capture data from GTA V using DeepGTAV (Self-Driving Car)")
-
-    # DeepGTAV connection settings
-    parser.add_argument('-l', '--host', default='127.0.0.1', 
-                        help='The IP where DeepGTAV is running')
-    parser.add_argument('-p', '--port', default=8000, type=int,
-                        help='The port where DeepGTAV is running')
-
-    # Data export settings
+    parser = argparse.ArgumentParser(description="Self-Driving Car + Data Capture with DeepGTAV")
+    parser.add_argument('-l', '--host', default='127.0.0.1', help='The IP where DeepGTAV is running')
+    parser.add_argument('-p', '--port', default=8000, type=int, help='The port where DeepGTAV is running')
     parser.add_argument('-s', '--save_dir', 
                         default='C:\\workspace\\exported_data\\SelfDrivingCar_Capture',
                         help='Directory where generated data is saved')
 
-    # Location & altitude parameters (kept for API compatibility but not used)
-    parser.add_argument('--loc_x', type=float, default=100, 
-                        help='X coordinate of the location')
-    parser.add_argument('--loc_y', type=float, default=3, 
-                        help='Y coordinate of the location')
-    parser.add_argument('--base_height', type=float, default=11, 
-                        help='(Unused) Base height above ground for the car to spawn')
-    parser.add_argument('--current_height', type=float, default=5, 
-                        help='(Unused) Current/target flight height above base_height')
-
-    # Environment parameters
+    # Location & environment
+    parser.add_argument('--loc_x', type=float, default=100, help='X coordinate of the spawn location')
+    parser.add_argument('--loc_y', type=float, default=3, help='Y coordinate of the spawn location')
     parser.add_argument('--weather', type=str, default='CLEAR', 
                         help="Weather type, e.g. 'CLEAR', 'RAIN', 'THUNDER'")
-    parser.add_argument('--time_hour', type=int, default=12, 
-                        help='Hour of the day (0-23) for in-game time')
-    parser.add_argument('--time_min', type=int, default=0, 
-                        help='Minutes of the day (0-59) for in-game time')
+    parser.add_argument('--time_hour', type=int, default=12, help='Hour of the day (0-23)')
+    parser.add_argument('--time_min', type=int, default=0, help='Minutes of the day (0-59)')
 
     # Capture parameters
-    parser.add_argument('--frames_to_capture', type=int, default=25, 
-                        help='Number of frames to capture')
+    parser.add_argument('--frames_to_capture', type=int, default=50, 
+                        help='Number of frames to capture in self-driving loop')
 
-    # Camera position and rotation
+    # Camera offsets
     parser.add_argument('--cam_y', type=float, default=4.0, 
                         help='Camera position offset on the Y axis (behind the car)')
     parser.add_argument('--cam_z', type=float, default=1.5, 
                         help='Camera position offset on the Z axis (height above the car)')
-    parser.add_argument('--rot_x', type=float, default=0, 
-                        help='Camera rotation in X (pitch)')
-    parser.add_argument('--rot_y', type=float, default=0, 
-                        help='Camera rotation in Y (roll)')
+    parser.add_argument('--rot_x', type=float, default=0, help='Camera rotation in X (pitch)')
+    parser.add_argument('--rot_y', type=float, default=0, help='Camera rotation in Y (roll)')
 
     args = parser.parse_args()
     args.save_dir = os.path.normpath(args.save_dir)
 
-    # Construct camera position dictionary from parser args
-    camera_position = {
-        'y': args.cam_y,
-        'z': args.cam_z,
-        'rot_x': args.rot_x,
-        'rot_y': args.rot_y
-    }
-
-    # Setup directories
+    # Create needed directories
     setup_directories(args.save_dir)
     
-    # Get run count
+    # Determine run count
     run_count = getRunCount(args.save_dir)
 
     # Attempt to move the GTA window
@@ -448,64 +382,90 @@ def main():
     except Exception as e:
         print(f"Error moving GTA window: {e}")
 
-    # Create a single, global client for the entire session
+    # Create a client connection to DeepGTAV
     client = None
     try:
-        # Create the global client once
         client = Client(ip=args.host, port=args.port)
-        print("Global client created.\n")
+        logging.info("DeepGTAV Client connected.")
 
-        # Capture data for the configuration specified by command-line arguments
-        capture_data_for_configuration(
-            client,
-            args=args,
-            run_count=run_count,
-            loc_x=args.loc_x,
-            loc_y=args.loc_y,
-            base_height=args.base_height,
-            current_height=args.current_height,
-            weather=args.weather,
-            time_hour=args.time_hour,
-            time_min=args.time_min,
-            camera_position=camera_position,
-            frames_to_capture=args.frames_to_capture
+        # Prepare scenario with manual driving => we send Commands ourselves
+        scenario = Scenario(
+            drivingMode=-1,  # Accept manual commands from Python
+            vehicle="comet2",  # Example car
+            location=[args.loc_x, args.loc_y, 0.0]  # Spawn location on ground
+        )
+        dataset = Dataset(
+            location=True,
+            time=True,
+            exportBBox2D=True,
+            segmentationImage=True,
+            exportLiDAR=False,  # Enable if you want LiDAR
+            maxLidarDist=5000,
+            exportStencilImage=True,
+            exportLiDARRaycast=False,
+            exportDepthBuffer=True
         )
 
+        # Start scenario & environment
+        client.sendMessage(Start(scenario=scenario, dataset=dataset))
+        client.sendMessage(SetCameraPositionAndRotation(
+            y=args.cam_y,
+            z=args.cam_z,
+            rot_x=args.rot_x,
+            rot_y=args.rot_y
+        ))
+        client.sendMessage(SetClockTime(args.time_hour, args.time_min))
+        client.sendMessage(SetWeather(args.weather))
+
+        time.sleep(2)  # Let the game stabilize
+
+        # Start recording
+        client.sendMessage(StartRecording())
+
+        # Create our "agent" model
+        model = Model()
+
+        # Perform capture & driving for N frames
+        capture_and_drive(client, args, run_count, model, frames_to_capture=args.frames_to_capture)
+
     except KeyboardInterrupt:
-        print("\nCapture interrupted by user")
+        print("\nCapture/self-driving interrupted by user.")
     except Exception as e:
         logging.error(f"Unexpected error in main: {str(e)}\n{traceback.format_exc()}")
+
     finally:
-        # Clean up global client at the very end
+        # Cleanup
         if client:
             try:
-                print("Stopping any ongoing recording...")
+                logging.info("Stopping recording...")
                 client.sendMessage(StopRecording())
-                time.sleep(0.5)  # Brief pause after stopping recording
+                time.sleep(0.5)
             except Exception as e:
                 logging.error(f"Error stopping recording: {str(e)}")
 
             try:
-                print("Stopping active scenario...")
+                logging.info("Stopping scenario...")
                 client.sendMessage(Stop())
-                time.sleep(1)  # Give GTA time to process stop command
-                
-                # Reset to a default location after the scenario
-                print("Returning to default location...")
-                client.sendMessage(GoToLocation(-75.0, -818.0, 0.0))
-                time.sleep(1)  # Let position update
-                
+                time.sleep(1)
             except Exception as e:
-                logging.error(f"Error during scenario cleanup: {str(e)}")
+                logging.error(f"Error stopping scenario: {str(e)}")
+
+            # Optionally return to some default location or reset the game state
+            try:
+                logging.info("Resetting location or scenario if needed...")
+                client.sendMessage(GoToLocation(-75.0, -818.0, 0.0))
+                time.sleep(1)
+            except Exception as e:
+                logging.error(f"Error resetting location: {str(e)}")
 
             try:
-                print("Closing client connection...")
+                logging.info("Closing DeepGTAV client...")
                 client.close()
-                time.sleep(0.5)  # Brief pause after closing
+                time.sleep(0.5)
             except Exception as e:
                 logging.error(f"Error closing client: {str(e)}")
 
-        print("Destroying OpenCV windows...")
+        logging.info("Destroying OpenCV windows.")
         cv2.destroyAllWindows()
 
 
