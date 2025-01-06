@@ -208,7 +208,7 @@ def capture_data_for_configuration(
     time_hour,
     time_min,
     camera_position,
-    frames_to_capture=25
+    frames_to_capture=1000
 ):
     """
     This function starts a scenario with the given configuration,
@@ -394,7 +394,7 @@ def main():
                         help='Current/target flight height above base_height')
 
     # Environment parameters
-    parser.add_argument('--weather', type=str, default='THUNDER', 
+    parser.add_argument('--weather', type=str, default='CLEAR', 
                         help="Weather type, e.g. 'CLEAR', 'RAIN', 'THUNDER'")
     parser.add_argument('--time_hour', type=int, default=12, 
                         help='Hour of the day (0-23) for in-game time')
@@ -402,7 +402,7 @@ def main():
                         help='Minutes of the day (0-59) for in-game time')
 
     # Capture parameters
-    parser.add_argument('--frames_to_capture', type=int, default=25, 
+    parser.add_argument('--frames_to_capture', type=int, default=1000, 
                         help='Number of frames to capture')
 
     # Camera position and rotation
