@@ -152,6 +152,10 @@ if __name__ == '__main__':
     CAMERA_ROT_Z_L = -180
     CAMERA_ROT_Z_R = 180
 
+    # Add new constants for rotation control
+    ROTATION_STEPS = 8  # Number of different rotation angles to capture
+    FRAMES_PER_ROTATION = 10  # Number of frames to capture at each rotation
+
     STD_DEV = 5
     ERROR_EPS = 10
 
@@ -213,7 +217,7 @@ if __name__ == '__main__':
             for x_temp in range(x_start, x_end, x_step):
                 for y_temp in range(y_start, y_end, y_step):
 
-                    for f in range(40):  # Increased from 20 to 40 for longer capture
+                    for f in range(80):  # Increased from 40 to 80 for longer captures
                         if f == 1:
                             weather = "CLEAR"
                             client.sendMessage(SetWeather(weather))
@@ -224,13 +228,12 @@ if __name__ == '__main__':
                             message = client.recvMessage()
 
                         elif f == 3:
-                            # Add random offset to grid positions (±25% of step size)
+                            # Location setup code remains the same
                             x_offset = random.uniform(-x_step * 0.25, x_step * 0.25)
                             y_offset = random.uniform(-y_step * 0.25, y_step * 0.25)
                             x_pos = x_temp + x_offset
                             y_pos = y_temp + y_offset
-
-                            # Use x_pos and y_pos instead of x_temp and y_temp in the teleport command
+                            
                             client.sendMessage(TeleportToLocation(x_pos, y_pos, TRAVEL_HEIGHT_ATEMPT))
                             message = client.recvMessage()
 
@@ -240,35 +243,43 @@ if __name__ == '__main__':
                             z_loc = z_ground + TRAVEL_HEIGHT - CAMERA_OFFSET_Z
                             z_temp = z_ground + TRAVEL_HEIGHT
 
-                        # First capture sequence
-                        elif f in range(7, 20):  # Extended capture window
-                            if f == 7:
-                                rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV)
-                                rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV)
-                                rot_z = random.randint(CAMERA_ROT_Z_L, CAMERA_ROT_Z_R)
-                                client.sendMessage(SetCameraPositionAndRotation(z = CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
-                            elif f == 9:
-                                client.sendMessage(StartRecording())
-                                message = client.recvMessage()
-                                heightAboveGround_1 = message['HeightAboveGround']
-                            elif f == 19:  # Extended recording time
-                                client.sendMessage(StopRecording())
-                                # ... rest of the capture logic ...
+                        # First capture sequence with gradual rotation
+                        elif 7 <= f < 40:  # Extended capture window
+                            rotation_index = (f - 7) // FRAMES_PER_ROTATION
+                            if rotation_index < ROTATION_STEPS:
+                                if f % FRAMES_PER_ROTATION == 0:
+                                    # Calculate smooth rotations
+                                    progress = rotation_index / (ROTATION_STEPS - 1)
+                                    rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV)
+                                    rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV)
+                                    rot_z = CAMERA_ROT_Z_L + progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L)
+                                    client.sendMessage(SetCameraPositionAndRotation(z=CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
+                                
+                                if f == 9:
+                                    client.sendMessage(StartRecording())
+                                    message = client.recvMessage()
+                                    heightAboveGround_1 = message['HeightAboveGround']
+                                elif f == 39:
+                                    client.sendMessage(StopRecording())
 
-                        # Second capture sequence
-                        elif f in range(25, 38):  # Extended capture window
-                            if f == 25:
-                                rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV)
-                                rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV)
-                                rot_z = random.randint(CAMERA_ROT_Z_L, CAMERA_ROT_Z_R)
-                                client.sendMessage(SetCameraPositionAndRotation(z=CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
-                            elif f == 27:
-                                client.sendMessage(StartRecording())
-                                message = client.recvMessage()
-                                heightAboveGround_3 = message['HeightAboveGround']
-                            elif f == 37:  # Extended recording time
-                                client.sendMessage(StopRecording())
-                                # ... rest of the capture logic ...
+                        # Second capture sequence with gradual rotation
+                        elif 45 <= f < 78:  # Extended capture window
+                            rotation_index = (f - 45) // FRAMES_PER_ROTATION
+                            if rotation_index < ROTATION_STEPS:
+                                if f % FRAMES_PER_ROTATION == 0:
+                                    # Calculate smooth rotations in opposite direction
+                                    progress = rotation_index / (ROTATION_STEPS - 1)
+                                    rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV)
+                                    rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV)
+                                    rot_z = CAMERA_ROT_Z_R - progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L)
+                                    client.sendMessage(SetCameraPositionAndRotation(z=CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
+                                
+                                if f == 47:
+                                    client.sendMessage(StartRecording())
+                                    message = client.recvMessage()
+                                    heightAboveGround_3 = message['HeightAboveGround']
+                                elif f == 77:
+                                    client.sendMessage(StopRecording())
 
                         else:
                             message = client.recvMessage()
