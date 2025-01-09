@@ -133,21 +133,20 @@ if __name__ == '__main__':
     # f = open('log.txt', 'w')
     # sys.stdout = f
 
-    CAMERA_OFFSET_Z = -5
-    CAMERA_OFFSET_ROT_Z = 20
-    TRAVEL_HEIGHT = 50
-    # TRAVEL_HEIGHT_LIST = [100, 200, 300, 400, 500, 600]
-    TRAVEL_HEIGHT_LIST = [20]  # Much lower starting height
-    TRAVEL_HEIGHT_ATEMPT = 100
+    CAMERA_OFFSET_Z = 15.0  # Raised significantly to get above car
+    CAMERA_OFFSET_ROT_Z = 180  # Rotate to face forward direction
+    TRAVEL_HEIGHT = 25     # Increased for better clearance
+    TRAVEL_HEIGHT_LIST = [100]  
+    TRAVEL_HEIGHT_ATEMPT = 30  
 
-    # Modified camera rotation ranges for low-altitude view
+    # Modified camera rotation ranges for drone-like viewing angle
     CAMERA_ROT_X = -45
-    CAMERA_ROT_X_L = -60
-    CAMERA_ROT_X_R = -30
+    CAMERA_ROT_X_L = -60  
+    CAMERA_ROT_X_R = -30  
 
     CAMERA_ROT_Y = 0    
-    CAMERA_ROT_Y_L = -20  # Increased range from -10 to -20
-    CAMERA_ROT_Y_R = 20   # Increased range from 10 to 20
+    CAMERA_ROT_Y_L = -15  
+    CAMERA_ROT_Y_R = 15   
 
     CAMERA_ROT_Z = 0    
     CAMERA_ROT_Z_L = -180
@@ -178,15 +177,12 @@ if __name__ == '__main__':
     x_step = step
     y_step = step
     x_y_list = [
-        # [-2480, 1764, -3349, 1304],
-        # [-361, 3171, 2283, 3889],
-        # [1572, 3064, 4168, 5311],
-        # [-1007, 798, 5761, 6745],
-        # [-3316, -2135, -28, 1589]
-
-        # [-3418, 3945, -3370, 3740]
-
-        [-1431, -1000, -877, -500]  # Replace with your desired coordinates [x_start, x_end, y_start, y_end]
+        [-1431, -1000, -877, -500],  # Original area
+        [-2500, -2000, -1000, -500],  # New area 1
+        [-1000, -500, -2000, -1500],  # New area 2
+        [-3000, -2500, -2000, -1500], # New area 3
+        [500, 1000, -1500, -1000],    # New area 4
+        [1000, 1500, 500, 1000]       # New area 5
     ]
     # x_start, x_end = -1700, 1599
     # y_start, y_end = -2586, 710
@@ -228,7 +224,14 @@ if __name__ == '__main__':
                             message = client.recvMessage()
 
                         elif f == 3:
-                            client.sendMessage(TeleportToLocation(x_temp, y_temp, TRAVEL_HEIGHT_ATEMPT))
+                            # Add random offset to grid positions (±25% of step size)
+                            x_offset = random.uniform(-x_step * 0.25, x_step * 0.25)
+                            y_offset = random.uniform(-y_step * 0.25, y_step * 0.25)
+                            x_pos = x_temp + x_offset
+                            y_pos = y_temp + y_offset
+
+                            # Use x_pos and y_pos instead of x_temp and y_temp in the teleport command
+                            client.sendMessage(TeleportToLocation(x_pos, y_pos, TRAVEL_HEIGHT_ATEMPT))
                             message = client.recvMessage()
 
                             heightAboveGround = message['HeightAboveGround']
