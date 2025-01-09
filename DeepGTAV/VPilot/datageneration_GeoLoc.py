@@ -153,9 +153,9 @@ if __name__ == '__main__':
     CAMERA_ROT_Z_R = 360  # Full 360-degree rotation
 
     # Add new constants for rotation control
-    ROTATION_STEPS = 32    # Doubled from 16 to get more angles
-    FRAMES_PER_ROTATION = 30  # Doubled from 15 to capture more frames at each angle
-    FRAMES_PER_LOCATION = 160  # Doubled from 80 for longer total capture time
+    ROTATION_STEPS = 16    # Doubled from 16 to get more angles
+    FRAMES_PER_ROTATION = 444      # Doubled from 222 for smoother rotation
+    FRAMES_PER_LOCATION = 1000     # Doubled from 500 for longer capture time at each location
 
     STD_DEV = 5
     ERROR_EPS = 10
@@ -164,9 +164,9 @@ if __name__ == '__main__':
     rot_y = CAMERA_ROT_Y
     rot_z = CAMERA_ROT_Z + CAMERA_OFFSET_ROT_Z
 
-    step = 100
+    step = 50
     # STEP_LIST = [50, 100, 150, 200, 250, 300]
-    STEP_LIST = [300]
+    STEP_LIST = [156]  # Halved from 312 for more dense sampling
 
 
     # Adjustments for recording
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     x_step = step
     y_step = step
     x_y_list = [
-        [-1431, -1000, -877, -500],  # Original area
+        [-1431, -1000, -877, -500],  # Original area with smaller steps
         [-2500, -2000, -1000, -500],  # New area 1
         [-1000, -500, -2000, -1500],  # New area 2
         [-3000, -2500, -2000, -1500], # New area 3
@@ -217,8 +217,10 @@ if __name__ == '__main__':
             x_start, x_end, y_start, y_end = x_y_list[i]
             for x_temp in range(x_start, x_end, x_step):
                 for y_temp in range(y_start, y_end, y_step):
+                    # Add delay between location changes
+                    time.sleep(0.5)  # Half second delay between teleports
 
-                    for f in range(FRAMES_PER_LOCATION):  # Using new constant instead of hardcoded 80
+                    for f in range(FRAMES_PER_LOCATION):
                         if f == 1:
                             weather = "CLEAR"
                             client.sendMessage(SetWeather(weather))
@@ -230,8 +232,8 @@ if __name__ == '__main__':
 
                         elif f == 3:
                             # Location setup code remains the same
-                            x_offset = random.uniform(-x_step * 0.25, x_step * 0.25)
-                            y_offset = random.uniform(-y_step * 0.25, y_step * 0.25)
+                            x_offset = random.uniform(-x_step * 0.15, x_step * 0.15)  # Reduced from 0.25
+                            y_offset = random.uniform(-y_step * 0.15, y_step * 0.15)  # Reduced from 0.25
                             x_pos = x_temp + x_offset
                             y_pos = y_temp + y_offset
                             
@@ -249,6 +251,8 @@ if __name__ == '__main__':
                             rotation_index = (f - 7) // FRAMES_PER_ROTATION
                             if rotation_index < ROTATION_STEPS:
                                 if f % FRAMES_PER_ROTATION == 0:
+                                    # Add small delay for smoother rotation
+                                    time.sleep(0.1)
                                     progress = rotation_index / (ROTATION_STEPS - 1)
                                     rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV/2)
                                     rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV/2)
@@ -263,21 +267,23 @@ if __name__ == '__main__':
                                     client.sendMessage(StopRecording())
 
                         # Second capture sequence with gradual rotation
-                        elif FRAMES_PER_LOCATION//2 + 5 <= f < FRAMES_PER_LOCATION - 2:  # Adjusted ranges
+                        elif FRAMES_PER_LOCATION//2 + 5 <= f < FRAMES_PER_LOCATION - 2:  # From 255 to 497
                             rotation_index = (f - (FRAMES_PER_LOCATION//2 + 5)) // FRAMES_PER_ROTATION
                             if rotation_index < ROTATION_STEPS:
                                 if f % FRAMES_PER_ROTATION == 0:
+                                    # Add small delay for smoother rotation
+                                    time.sleep(0.1)
                                     progress = rotation_index / (ROTATION_STEPS - 1)
                                     rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV/2)
                                     rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV/2)
                                     rot_z = CAMERA_ROT_Z_R - progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L) + CAMERA_OFFSET_ROT_Z
                                     client.sendMessage(SetCameraPositionAndRotation(z=CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
                                 
-                                if f == FRAMES_PER_LOCATION//2 + 7:  # Changed from 47
+                                if f == FRAMES_PER_LOCATION//2 + 7:  # Starts at frame 257
                                     client.sendMessage(StartRecording())
                                     message = client.recvMessage()
                                     heightAboveGround_3 = message['HeightAboveGround']
-                                elif f == FRAMES_PER_LOCATION - 3:  # Changed from 77
+                                elif f == FRAMES_PER_LOCATION - 3:  # Stops at frame 496
                                     client.sendMessage(StopRecording())
 
                         else:
