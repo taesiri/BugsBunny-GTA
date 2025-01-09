@@ -140,21 +140,22 @@ if __name__ == '__main__':
     TRAVEL_HEIGHT_ATEMPT = 30  
 
     # Modified camera rotation ranges for drone-like viewing angle
-    CAMERA_ROT_X = -45
-    CAMERA_ROT_X_L = -60  
-    CAMERA_ROT_X_R = -30  
+    CAMERA_ROT_X = -45  # Keep camera tilted down at 45 degrees
+    CAMERA_ROT_X_L = -50  # Small variation in downward tilt
+    CAMERA_ROT_X_R = -40  
 
-    CAMERA_ROT_Y = 0    
-    CAMERA_ROT_Y_L = -15  
-    CAMERA_ROT_Y_R = 15   
+    CAMERA_ROT_Y = 0    # Roll should stay close to 0 for stable drone view
+    CAMERA_ROT_Y_L = -5  
+    CAMERA_ROT_Y_R = 5   
 
     CAMERA_ROT_Z = 0    
-    CAMERA_ROT_Z_L = -180
-    CAMERA_ROT_Z_R = 180
+    CAMERA_ROT_Z_L = 0    # Start facing north
+    CAMERA_ROT_Z_R = 360  # Full 360-degree rotation
 
     # Add new constants for rotation control
-    ROTATION_STEPS = 8  # Number of different rotation angles to capture
-    FRAMES_PER_ROTATION = 10  # Number of frames to capture at each rotation
+    ROTATION_STEPS = 32    # Doubled from 16 to get more angles
+    FRAMES_PER_ROTATION = 30  # Doubled from 15 to capture more frames at each angle
+    FRAMES_PER_LOCATION = 160  # Doubled from 80 for longer total capture time
 
     STD_DEV = 5
     ERROR_EPS = 10
@@ -217,7 +218,7 @@ if __name__ == '__main__':
             for x_temp in range(x_start, x_end, x_step):
                 for y_temp in range(y_start, y_end, y_step):
 
-                    for f in range(80):  # Increased from 40 to 80 for longer captures
+                    for f in range(FRAMES_PER_LOCATION):  # Using new constant instead of hardcoded 80
                         if f == 1:
                             weather = "CLEAR"
                             client.sendMessage(SetWeather(weather))
@@ -244,41 +245,39 @@ if __name__ == '__main__':
                             z_temp = z_ground + TRAVEL_HEIGHT
 
                         # First capture sequence with gradual rotation
-                        elif 7 <= f < 40:  # Extended capture window
+                        elif 7 <= f < FRAMES_PER_LOCATION//2:  # Changed from 40 to FRAMES_PER_LOCATION//2
                             rotation_index = (f - 7) // FRAMES_PER_ROTATION
                             if rotation_index < ROTATION_STEPS:
                                 if f % FRAMES_PER_ROTATION == 0:
-                                    # Calculate smooth rotations
                                     progress = rotation_index / (ROTATION_STEPS - 1)
-                                    rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV)
-                                    rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV)
-                                    rot_z = CAMERA_ROT_Z_L + progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L)
+                                    rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV/2)
+                                    rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV/2)
+                                    rot_z = CAMERA_ROT_Z_L + progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L) + CAMERA_OFFSET_ROT_Z
                                     client.sendMessage(SetCameraPositionAndRotation(z=CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
                                 
                                 if f == 9:
                                     client.sendMessage(StartRecording())
                                     message = client.recvMessage()
                                     heightAboveGround_1 = message['HeightAboveGround']
-                                elif f == 39:
+                                elif f == FRAMES_PER_LOCATION//2 - 1:  # Changed from 39
                                     client.sendMessage(StopRecording())
 
                         # Second capture sequence with gradual rotation
-                        elif 45 <= f < 78:  # Extended capture window
-                            rotation_index = (f - 45) // FRAMES_PER_ROTATION
+                        elif FRAMES_PER_LOCATION//2 + 5 <= f < FRAMES_PER_LOCATION - 2:  # Adjusted ranges
+                            rotation_index = (f - (FRAMES_PER_LOCATION//2 + 5)) // FRAMES_PER_ROTATION
                             if rotation_index < ROTATION_STEPS:
                                 if f % FRAMES_PER_ROTATION == 0:
-                                    # Calculate smooth rotations in opposite direction
                                     progress = rotation_index / (ROTATION_STEPS - 1)
-                                    rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV)
-                                    rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV)
-                                    rot_z = CAMERA_ROT_Z_R - progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L)
+                                    rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV/2)
+                                    rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV/2)
+                                    rot_z = CAMERA_ROT_Z_R - progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L) + CAMERA_OFFSET_ROT_Z
                                     client.sendMessage(SetCameraPositionAndRotation(z=CAMERA_OFFSET_Z, rot_x=rot_x, rot_y=rot_y, rot_z=rot_z))
                                 
-                                if f == 47:
+                                if f == FRAMES_PER_LOCATION//2 + 7:  # Changed from 47
                                     client.sendMessage(StartRecording())
                                     message = client.recvMessage()
                                     heightAboveGround_3 = message['HeightAboveGround']
-                                elif f == 77:
+                                elif f == FRAMES_PER_LOCATION - 3:  # Changed from 77
                                     client.sendMessage(StopRecording())
 
                         else:
