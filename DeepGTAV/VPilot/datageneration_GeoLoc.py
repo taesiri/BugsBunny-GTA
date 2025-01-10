@@ -133,29 +133,32 @@ if __name__ == '__main__':
     # f = open('log.txt', 'w')
     # sys.stdout = f
 
-    CAMERA_OFFSET_Z = 15.0  # Raised significantly to get above car
-    CAMERA_OFFSET_ROT_Z = 180  # Rotate to face forward direction
-    TRAVEL_HEIGHT = 25     # Increased for better clearance
-    TRAVEL_HEIGHT_LIST = [100]  
+    # Camera offset constants
+    CAMERA_OFFSET_Z = 15.0  # Height offset from vehicle
+    CAMERA_OFFSET_ROT_Z = 0  # Initial rotation offset (in degrees)
+
+    TRAVEL_HEIGHT = 25     # Base height for travel
+    TRAVEL_HEIGHT_LIST = [50]  # Reduced from 100 for better visibility
     TRAVEL_HEIGHT_ATEMPT = 30  
 
-    # Modified camera rotation ranges for drone-like viewing angle
-    CAMERA_ROT_X = -45  # Keep camera tilted down at 45 degrees
-    CAMERA_ROT_X_L = -50  # Small variation in downward tilt
-    CAMERA_ROT_X_R = -40  
+    # Adjusted camera rotation ranges for more stable drone-like viewing
+    CAMERA_ROT_X = -30  # Less steep downward angle (changed from -45)
+    CAMERA_ROT_X_L = -35  # Smaller variation range
+    CAMERA_ROT_X_R = -25  
 
-    CAMERA_ROT_Y = 0    # Roll should stay close to 0 for stable drone view
-    CAMERA_ROT_Y_L = -5  
-    CAMERA_ROT_Y_R = 5   
+    CAMERA_ROT_Y = 0    # Roll angle
+    CAMERA_ROT_Y_L = -2  # Reduced roll variation (from -5)
+    CAMERA_ROT_Y_R = 2   # Reduced roll variation (from 5)
 
+    # Reduced rotation range for more focused captures
     CAMERA_ROT_Z = 0    
-    CAMERA_ROT_Z_L = 0    # Start facing north
-    CAMERA_ROT_Z_R = 360  # Full 360-degree rotation
+    CAMERA_ROT_Z_L = 0    
+    CAMERA_ROT_Z_R = 180  # Reduced from 360 to focus on forward-facing views
 
-    # Add new constants for rotation control
-    ROTATION_STEPS = 16    # Doubled from 16 to get more angles
-    FRAMES_PER_ROTATION = 444      # Doubled from 222 for smoother rotation
-    FRAMES_PER_LOCATION = 1000     # Doubled from 500 for longer capture time at each location
+    # Adjusted timing constants
+    ROTATION_STEPS = 8     # Reduced from 16 for slower rotation
+    FRAMES_PER_ROTATION = 888    # Doubled again for even smoother rotation
+    FRAMES_PER_LOCATION = 2000   # Doubled for longer capture time
 
     STD_DEV = 5
     ERROR_EPS = 10
