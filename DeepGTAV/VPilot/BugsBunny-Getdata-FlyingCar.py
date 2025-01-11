@@ -399,14 +399,14 @@ def capture_data_for_configuration(
         print(f" - Weather: {weather}")
         print(f" - Time: {time_hour:02d}:{time_min:02d}")
         print(f" - Height: {current_height} m")
-        print(f" - Camera position: {camera_position}")
+        print(f" - Camera preset: {camera_position.get('preset_name', 'default')}")
 
-        # Initialize scenario with voltic vehicle instead of buzzard
+        # Initialize scenario
         scenario = Scenario(
-            drivingMode=[786603, 0],  # Updated driving mode from GeoLoc script
-            vehicle="voltic",  # Changed from buzzard to voltic
+            drivingMode=[786603, 0],
+            vehicle="voltic",
             location=[loc_x, loc_y, base_height],
-            spawnedEntitiesDespawnSeconds=200  # Added from GeoLoc script
+            spawnedEntitiesDespawnSeconds=200
         )
         
         dataset = Dataset(
@@ -421,58 +421,38 @@ def capture_data_for_configuration(
             exportDepthBuffer=True
         )
 
-        # Start scenario and configure environment
+        # Start scenario
         client.sendMessage(Start(scenario=scenario, dataset=dataset))
 
-        # Camera constants from GeoLoc script
-        CAMERA_OFFSET_Z = 15.0
-        CAMERA_ROT_X = -30
-        CAMERA_ROT_X_L = -35
-        CAMERA_ROT_X_R = -25
-        CAMERA_ROT_Y = 0
-        CAMERA_ROT_Y_L = -2
-        CAMERA_ROT_Y_R = 2
-        CAMERA_ROT_Z = 0
-        CAMERA_ROT_Z_L = 0
-        CAMERA_ROT_Z_R = 180
-        CAMERA_OFFSET_ROT_Z = 0
-        STD_DEV = 5
-
-        # Initial camera setup
-        rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV/2)
-        rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV/2)
-        rot_z = CAMERA_ROT_Z + CAMERA_OFFSET_ROT_Z
-
-        client.sendMessage(SetCameraPositionAndRotation(
-            z=CAMERA_OFFSET_Z,
-            rot_x=rot_x,
-            rot_y=rot_y,
-            rot_z=rot_z
-        ))
-
-        # Rest of environment setup
+        # Set environment conditions
         client.sendMessage(SetClockTime(time_hour, time_min))
         client.sendMessage(SetWeather(weather))
 
-        # Wait for scene to stabilize and start recording
-        time.sleep(2)
-        client.sendMessage(StartRecording())
+        # Set initial camera position before starting recording
+        client.sendMessage(SetCameraPositionAndRotation(
+            x=camera_position.get('x', 0),
+            y=camera_position.get('y', 0),
+            z=camera_position.get('z', 2.0),
+            rot_x=camera_position.get('rot_x', 0),
+            rot_y=camera_position.get('rot_y', 0),
+            rot_z=camera_position.get('rot_z', 0) if not isinstance(camera_position.get('rot_z'), str) else 0
+        ))
 
-        frame_indices = []
-        rotation_steps = 8
-        frames_per_rotation = 888
+        # Wait for scene and camera to stabilize
+        time.sleep(3)
 
-        # Modified camera rotation logic
-        def update_camera_rotation(frame_count, camera_position):
+        # Define camera update function for dynamic presets
+        def update_camera_rotation(frame_count, camera_config):
             """
             Updates camera rotation based on preset type and frame count
             
             Args:
                 frame_count (int): Current frame number
-                camera_position (dict): Camera configuration
+                camera_config (dict): Camera configuration
             """
-            if isinstance(camera_position.get('rot_z'), str) and camera_position['rot_z'] == 'dynamic':
-                if 'chase' in camera_position.get('preset_name', ''):
+            # Only update if using dynamic rotation
+            if isinstance(camera_config.get('rot_z'), str) and camera_config['rot_z'] == 'dynamic':
+                if 'chase' in camera_config.get('preset_name', ''):
                     # Smoother rotation for chase camera
                     rotation_speed = 0.5  # Degrees per frame
                     rot_z = (frame_count * rotation_speed) % 360
@@ -480,18 +460,21 @@ def capture_data_for_configuration(
                     # Regular orbital movement
                     rotation_progress = (frame_count % frames_to_capture) / frames_to_capture
                     rot_z = rotation_progress * 360
-            else:
-                rot_z = camera_position.get('rot_z', 0)
 
-            # Apply camera position and rotation
-            client.sendMessage(SetCameraPositionAndRotation(
-                x=camera_position.get('x', 0),  # Added x position support
-                y=camera_position.get('y', 0),
-                z=camera_position.get('z', 2.0),
-                rot_x=camera_position.get('rot_x', 0),
-                rot_y=camera_position.get('rot_y', 0),
-                rot_z=rot_z
-            ))
+                # Only send camera update message for dynamic cameras
+                client.sendMessage(SetCameraPositionAndRotation(
+                    x=camera_config.get('x', 0),
+                    y=camera_config.get('y', 0),
+                    z=camera_config.get('z', 2.0),
+                    rot_x=camera_config.get('rot_x', 0),
+                    rot_y=camera_config.get('rot_y', 0),
+                    rot_z=rot_z
+                ))
+
+        # Start recording after camera is set
+        client.sendMessage(StartRecording())
+
+        frame_indices = []
 
         with tqdm(total=frames_to_capture, desc=f"Capturing frames at ({loc_x}, {loc_y})") as pbar:
             for count in range(1, frames_to_capture + 1):
@@ -502,8 +485,9 @@ def capture_data_for_configuration(
                         pbar.update(1)
                         continue
 
-                    # Update camera position and rotation
-                    update_camera_rotation(count, camera_position)
+                    # Only update camera if using dynamic rotation
+                    if isinstance(camera_position.get('rot_z'), str) and camera_position['rot_z'] == 'dynamic':
+                        update_camera_rotation(count, camera_position)
 
                     # Check if we have essential data
                     required_keys = ["segmentationImage", "bbox2d", "frame"]
