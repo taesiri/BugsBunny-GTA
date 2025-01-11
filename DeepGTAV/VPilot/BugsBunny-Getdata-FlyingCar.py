@@ -431,15 +431,15 @@ def main():
 
     # Data export settings
     parser.add_argument('-s', '--save_dir', 
-                        default='C:\\workspace\\exported_data\\VisDrone_LiDAR_presentation_16',
+                        default='C:\\Workspace\\gta_data_export\\flying_car1',
                         help='Directory where generated data is saved')
 
-    # Location & altitude parameters
-    parser.add_argument('--loc_x', type=float, default=100, 
+    # Location & altitude parameters - Updated to Downtown Los Santos location
+    parser.add_argument('--loc_x', type=float, default=-75.0, 
                         help='X coordinate of the location')
-    parser.add_argument('--loc_y', type=float, default=3, 
+    parser.add_argument('--loc_y', type=float, default=-818.0, 
                         help='Y coordinate of the location')
-    parser.add_argument('--base_height', type=float, default=11, 
+    parser.add_argument('--base_height', type=float, default=326.0, 
                         help='Base height above ground for the drone to spawn')
     parser.add_argument('--current_height', type=float, default=5, 
                         help='Current/target flight height above base_height')
@@ -452,8 +452,8 @@ def main():
     parser.add_argument('--time_min', type=int, default=0, 
                         help='Minutes of the day (0-59) for in-game time')
 
-    # Capture parameters
-    parser.add_argument('--frames_to_capture', type=int, default=1000, 
+    # Capture parameters - Updated to 50 frames
+    parser.add_argument('--frames_to_capture', type=int, default=50, 
                         help='Number of frames to capture')
 
     # Camera position and rotation
