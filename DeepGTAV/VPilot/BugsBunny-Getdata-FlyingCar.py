@@ -176,6 +176,104 @@ CAMERA_PRESETS = [
             'rot_y': 0,
             'rot_z': 'dynamic'  # Will smoothly follow the vehicle
         }
+    },
+    {
+        'name': 'high_orbit',
+        'height': 15.0,
+        'camera': {
+            'z': 15.0,
+            'rot_x': -60,
+            'rot_y': 0,
+            'rot_z': 'dynamic'  # Will rotate around the vehicle
+        }
+    },
+    {
+        'name': 'cinematic_low',
+        'height': 1.5,
+        'camera': {
+            'z': 1.5,
+            'y': -3.0,
+            'rot_x': -5,
+            'rot_y': 0,
+            'rot_z': 'dynamic'  # Smooth cinematic rotation
+        }
+    },
+    {
+        'name': 'top_quarter',
+        'height': 12.0,
+        'camera': {
+            'z': 12.0,
+            'y': -8.0,
+            'rot_x': -65,
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'diagonal_high',
+        'height': 20.0,
+        'camera': {
+            'z': 20.0,
+            'y': -15.0,
+            'rot_x': -55,
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'front_low',
+        'height': 2.0,
+        'camera': {
+            'z': 2.0,
+            'y': 5.0,  # Position in front of the vehicle
+            'rot_x': -10,
+            'rot_y': 0,
+            'rot_z': 180  # Looking back at the vehicle
+        }
+    },
+    {
+        'name': 'corner_view',
+        'height': 3.0,
+        'camera': {
+            'z': 3.0,
+            'x': 3.0,
+            'y': -3.0,
+            'rot_x': -20,
+            'rot_y': 0,
+            'rot_z': -45  # Diagonal angle
+        }
+    },
+    {
+        'name': 'dynamic_chase',
+        'height': 5.0,
+        'camera': {
+            'z': 5.0,
+            'y': -8.0,
+            'rot_x': -25,
+            'rot_y': 0,
+            'rot_z': 'dynamic'  # Smooth following with slight rotation
+        }
+    },
+    {
+        'name': 'birds_eye',
+        'height': 25.0,
+        'camera': {
+            'z': 25.0,
+            'rot_x': -89,  # Almost directly overhead
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'dramatic_low',
+        'height': 1.0,
+        'camera': {
+            'z': 1.0,
+            'y': -4.0,
+            'rot_x': -5,
+            'rot_y': 0,
+            'rot_z': 'dynamic'  # Dramatic rotating low angle
+        }
     }
 ]
 
@@ -604,7 +702,7 @@ def main():
 
     # Data export settings
     parser.add_argument('-s', '--save_dir', 
-                        default='C:\\Workspace\\gta_data_export\\flying_car1',
+                        default='C:\\Workspace\\gta_data_export\\flying_car3',
                         help='Directory where generated data is saved')
 
     # Location & altitude parameters - Updated to Downtown Los Santos location
