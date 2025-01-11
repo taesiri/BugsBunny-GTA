@@ -57,6 +57,128 @@ INTERESTING_LOCATIONS = [
     [890.0, -50.0, 378.0, "Rockford Hills"]
 ]
 
+CAMERA_PRESETS = [
+    {
+        'name': 'overhead',
+        'height': 15.0,
+        'camera': {
+            'z': 15.0,
+            'rot_x': -85,  # Looking almost straight down
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'diagonal',
+        'height': 10.0,
+        'camera': {
+            'z': 10.0,
+            'rot_x': -45,  # 45-degree angle view
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'low_angle',
+        'height': 5.0,
+        'camera': {
+            'z': 5.0,
+            'rot_x': -30,  # Lower angle view
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'orbit',
+        'height': 8.0,
+        'camera': {
+            'z': 8.0,
+            'rot_x': -40,
+            'rot_y': 0,
+            'rot_z': 'dynamic'  # Special flag for orbital movement
+        }
+    },
+    {
+        'name': 'behind',
+        'height': 3.0,
+        'camera': {
+            'z': 3.0,
+            'y': -5.0,  # Position behind the vehicle
+            'rot_x': -15,  # Slight downward angle
+            'rot_y': 0,
+            'rot_z': 0  # Looking forward
+        }
+    },
+    {
+        'name': 'third_person',
+        'height': 2.5,
+        'camera': {
+            'z': 2.5,
+            'y': -4.0,  # Closer than 'behind'
+            'rot_x': -10,
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'third_person_far',
+        'height': 3.5,
+        'camera': {
+            'z': 3.5,
+            'y': -7.0,  # Further back than regular third person
+            'rot_x': -12,
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'first_person',
+        'height': 1.8,
+        'camera': {
+            'z': 1.8,  # Approximate driver eye level
+            'y': -0.5,  # Slightly behind windshield
+            'rot_x': -5,  # Slight downward angle
+            'rot_y': 0,
+            'rot_z': 0
+        }
+    },
+    {
+        'name': 'side_left',
+        'height': 2.0,
+        'camera': {
+            'z': 2.0,
+            'x': -3.0,  # Offset to the left
+            'y': 0,
+            'rot_x': -10,
+            'rot_y': 0,
+            'rot_z': 90  # Rotated to look at vehicle from left
+        }
+    },
+    {
+        'name': 'side_right',
+        'height': 2.0,
+        'camera': {
+            'z': 2.0,
+            'x': 3.0,  # Offset to the right
+            'y': 0,
+            'rot_x': -10,
+            'rot_y': 0,
+            'rot_z': -90  # Rotated to look at vehicle from right
+        }
+    },
+    {
+        'name': 'chase',
+        'height': 4.0,
+        'camera': {
+            'z': 4.0,
+            'y': -6.0,
+            'rot_x': -20,
+            'rot_y': 0,
+            'rot_z': 'dynamic'  # Will smoothly follow the vehicle
+        }
+    }
+]
+
 def get_random_location():
     """
     Returns a random location from the predefined list of interesting locations
@@ -71,6 +193,21 @@ def get_random_location():
         'base_height': location[2],
         'description': location[3]
     }
+
+def get_camera_preset(preset_name):
+    """
+    Returns camera configuration for the given preset name
+    
+    Args:
+        preset_name (str): Name of the preset to use
+        
+    Returns:
+        dict: Camera configuration parameters
+    """
+    for preset in CAMERA_PRESETS:
+        if preset['name'] == preset_name:
+            return preset
+    return None
 
 ###############################################################################
 # Helper Functions
@@ -325,6 +462,37 @@ def capture_data_for_configuration(
         rotation_steps = 8
         frames_per_rotation = 888
 
+        # Modified camera rotation logic
+        def update_camera_rotation(frame_count, camera_position):
+            """
+            Updates camera rotation based on preset type and frame count
+            
+            Args:
+                frame_count (int): Current frame number
+                camera_position (dict): Camera configuration
+            """
+            if isinstance(camera_position.get('rot_z'), str) and camera_position['rot_z'] == 'dynamic':
+                if 'chase' in camera_position.get('preset_name', ''):
+                    # Smoother rotation for chase camera
+                    rotation_speed = 0.5  # Degrees per frame
+                    rot_z = (frame_count * rotation_speed) % 360
+                else:
+                    # Regular orbital movement
+                    rotation_progress = (frame_count % frames_to_capture) / frames_to_capture
+                    rot_z = rotation_progress * 360
+            else:
+                rot_z = camera_position.get('rot_z', 0)
+
+            # Apply camera position and rotation
+            client.sendMessage(SetCameraPositionAndRotation(
+                x=camera_position.get('x', 0),  # Added x position support
+                y=camera_position.get('y', 0),
+                z=camera_position.get('z', 2.0),
+                rot_x=camera_position.get('rot_x', 0),
+                rot_y=camera_position.get('rot_y', 0),
+                rot_z=rot_z
+            ))
+
         with tqdm(total=frames_to_capture, desc=f"Capturing frames at ({loc_x}, {loc_y})") as pbar:
             for count in range(1, frames_to_capture + 1):
                 try:
@@ -334,22 +502,8 @@ def capture_data_for_configuration(
                         pbar.update(1)
                         continue
 
-                    # Update camera rotation periodically
-                    if count % frames_per_rotation == 0:
-                        rotation_index = (count // frames_per_rotation) % rotation_steps
-                        progress = rotation_index / (rotation_steps - 1)
-                        
-                        # Update rotations using GeoLoc logic
-                        rot_x = gaussin_random_truncted(CAMERA_ROT_X_L, CAMERA_ROT_X_R, CAMERA_ROT_X, STD_DEV/2)
-                        rot_y = gaussin_random_truncted(CAMERA_ROT_Y_L, CAMERA_ROT_Y_R, CAMERA_ROT_Y, STD_DEV/2)
-                        rot_z = CAMERA_ROT_Z_L + progress * (CAMERA_ROT_Z_R - CAMERA_ROT_Z_L) + CAMERA_OFFSET_ROT_Z
-                        
-                        client.sendMessage(SetCameraPositionAndRotation(
-                            z=CAMERA_OFFSET_Z,
-                            rot_x=rot_x,
-                            rot_y=rot_y,
-                            rot_z=rot_z
-                        ))
+                    # Update camera position and rotation
+                    update_camera_rotation(count, camera_position)
 
                     # Check if we have essential data
                     required_keys = ["segmentationImage", "bbox2d", "frame"]
@@ -505,16 +659,30 @@ def main():
     parser.add_argument('--random_location', action='store_true',
                         help='Use random locations instead of default')
 
+    # Add new camera preset argument
+    parser.add_argument('--camera_preset', type=str, choices=['default'] + [p['name'] for p in CAMERA_PRESETS],
+                    default='default', help='Predefined camera configuration to use')
+
     args = parser.parse_args()
     args.save_dir = os.path.normpath(args.save_dir)
 
-    # Construct camera position dictionary from parser args
-    camera_position = {
-        'y': args.cam_y,
-        'z': args.cam_z,
-        'rot_x': args.rot_x,
-        'rot_y': args.rot_y
-    }
+    # Update camera position based on preset if specified
+    if args.camera_preset != 'default':
+        preset = get_camera_preset(args.camera_preset)
+        if preset:
+            args.current_height = preset['height']
+            camera_position = preset['camera']
+            
+            # If using orbit preset, don't override rot_z as it will be dynamic
+            if preset['name'] == 'orbit':
+                camera_position['rot_z'] = 'dynamic'
+    else:
+        camera_position = {
+            'y': args.cam_y,
+            'z': args.cam_z,
+            'rot_x': args.rot_x,
+            'rot_y': args.rot_y
+        }
 
     # Setup directories
     setup_directories(args.save_dir)
