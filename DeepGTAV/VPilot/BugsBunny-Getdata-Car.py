@@ -355,7 +355,7 @@ def main():
     parser.add_argument('--time_min', type=int, default=0, help='Minutes of the day (0-59)')
 
     # Capture parameters
-    parser.add_argument('--frames_to_capture', type=int, default=100, 
+    parser.add_argument('--frames_to_capture', type=int, default=25, 
                         help='Number of frames to capture in self-driving loop')
 
     # Camera offsets
