@@ -38,6 +38,41 @@ from utils.utils import (
 matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyplot
 
 ###############################################################################
+# Location Definitions
+###############################################################################
+
+INTERESTING_LOCATIONS = [
+    # [x, y, base_height, description]
+    [-75.0, -818.0, 326.0, "Downtown Los Santos"],
+    [890.0, -2110.0, 350.0, "Los Santos International Airport"],
+    [-1667.0, -540.0, 375.0, "Del Perro Beach"],
+    [375.0, -1050.0, 329.0, "Legion Square"],
+    [-2030.0, 295.0, 340.0, "Pacific Bluffs"],
+    [1850.0, 3750.0, 333.0, "Sandy Shores"],
+    [-90.0, -50.0, 330.0, "Vinewood Hills"],
+    [5.0, 5315.0, 345.0, "Paleto Bay"],
+    [-1377.0, -2838.0, 335.0, "LSIA Runway"],
+    [1695.0, 2650.0, 345.0, "Prison"],
+    [-2235.0, -180.0, 340.0, "Pacific Ocean Highway"],
+    [890.0, -50.0, 378.0, "Rockford Hills"]
+]
+
+def get_random_location():
+    """
+    Returns a random location from the predefined list of interesting locations
+    
+    Returns:
+        dict: Contains x, y coordinates, base_height and description of the location
+    """
+    location = random.choice(INTERESTING_LOCATIONS)
+    return {
+        'x': location[0],
+        'y': location[1],
+        'base_height': location[2],
+        'description': location[3]
+    }
+
+###############################################################################
 # Helper Functions
 ###############################################################################
 
@@ -466,6 +501,10 @@ def main():
     parser.add_argument('--rot_y', type=float, default=0, 
                         help='Camera rotation in Y (roll)')
 
+    # Add new argument for random location
+    parser.add_argument('--random_location', action='store_true',
+                        help='Use random locations instead of default')
+
     args = parser.parse_args()
     args.save_dir = os.path.normpath(args.save_dir)
 
@@ -496,6 +535,15 @@ def main():
         # Create the global client once
         client = Client(ip=args.host, port=args.port)
         print("Global client created.\n")
+
+        # If random location is enabled, override the location parameters
+        if args.random_location:
+            location = get_random_location()
+            args.loc_x = location['x']
+            args.loc_y = location['y']
+            args.base_height = location['base_height']
+            print(f"\nSelected random location: {location['description']}")
+            print(f"Coordinates: X={location['x']}, Y={location['y']}, Height={location['base_height']}")
 
         # Now capture data for the configuration specified by command-line arguments
         capture_data_for_configuration(
