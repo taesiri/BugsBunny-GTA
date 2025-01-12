@@ -552,9 +552,9 @@ def capture_data_for_configuration(
         print(f" - Height: {current_height} m")
         print(f" - Camera preset: {camera_position.get('preset_name', 'default')}")
 
-        # Initialize scenario
+        # Initialize scenario with higher speed
         scenario = Scenario(
-            drivingMode=[786603, 0],
+            drivingMode=[786603, 78.0],  # [drivingMode, setSpeed] - 78.0 m/s is about 280 km/h
             vehicle="voltic",
             location=[loc_x, loc_y, base_height],
             spawnedEntitiesDespawnSeconds=200
