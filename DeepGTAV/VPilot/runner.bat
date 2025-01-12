@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set BASE_SAVE_DIR=C:\Workspace\gta_data_export\capture_
+set BASE_SAVE_DIR=C:\\Workspace\\gta_data_export\\capture_
 
 for /l %%i in (1,1,10) do (
     echo Running iteration %%i...

@@ -55,7 +55,6 @@ INTERESTING_LOCATIONS = [
     [1695.0, 2650.0, 345.0, "Prison"],
     [-2235.0, -180.0, 340.0, "Pacific Ocean Highway"],
     [890.0, -50.0, 378.0, "Rockford Hills"],
-    # New locations added
     [-2150.0, 2600.0, 335.0, "Fort Zancudo"],
     [2000.0, 4750.0, 340.0, "Grapeseed"],
     [1250.0, -1500.0, 340.0, "Mirror Park"],
@@ -73,7 +72,22 @@ INTERESTING_LOCATIONS = [
     [-500.0, 5700.0, 340.0, "Procopio Beach"],
     [-2700.0, -300.0, 340.0, "Banham Canyon"],
     [1500.0, 1100.0, 340.0, "Redwood Lights Track"],
-    [-300.0, -1400.0, 330.0, "Pillbox Hill"]
+    [-300.0, -1400.0, 330.0, "Pillbox Hill"],
+    [750.0, -1600.0, 335.0, "La Mesa"],
+    [-2300.0, 3200.0, 340.0, "North Chumash"],
+    [2800.0, 3500.0, 340.0, "Alamo Sea"],
+    [400.0, 2600.0, 340.0, "Route 68"],
+    [-1500.0, 1300.0, 340.0, "Tongva Hills"],
+    [2100.0, -2700.0, 335.0, "Port of South Los Santos"],
+    [-900.0, 2700.0, 340.0, "Lago Zancudo"],
+    [3000.0, -500.0, 340.0, "Palmer-Taylor Power Station"],
+    [-2500.0, -500.0, 340.0, "Pacific Ocean Cliffs"],
+    [1200.0, -3000.0, 335.0, "Terminal"],
+    [-1200.0, -1700.0, 330.0, "Vespucci Beach"],
+    [2500.0, 2100.0, 340.0, "RON Alternates Wind Farm"],
+    [-800.0, 200.0, 340.0, "Vinewood Bowl"],
+    [1800.0, -600.0, 340.0, "Tataviam Mountains East"],
+    [-2000.0, 1200.0, 340.0, "Tongva Valley"]
 ]
 
 CAMERA_PRESETS = [
@@ -155,8 +169,8 @@ CAMERA_PRESETS = [
         'height': 1.8,
         'camera': {
             'z': 1.8,  # Approximate driver eye level
-            'y': 2.0,  # Moved forward to avoid collision (was -0.5)
-            'rot_x': 5,  # Slight downward angle
+            'y': 2.1,  # Moved forward to avoid collision (was -0.5)
+            'rot_x': 0,  # Slight downward angle
             'rot_y': 0,
             'rot_z': 0
         }
@@ -721,7 +735,7 @@ def main():
 
     # Data export settings
     parser.add_argument('-s', '--save_dir', 
-                        default='C:\\Workspace\\gta_data_export\\flying_car6',
+                        default='C:\\Workspace\\gta_data_export\\flying_car11',
                         help='Directory where generated data is saved')
 
     # Location & altitude parameters - Updated to Downtown Los Santos location
