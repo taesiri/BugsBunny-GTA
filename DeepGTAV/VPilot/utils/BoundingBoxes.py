@@ -23,7 +23,12 @@ VIDSDRONE_OBJECT_CATEGORY_TO_NUMBER = {'pedestrian': 0,
                              'tricycle': 6,
                              'awning-tricycle': 7,
                              'bus': 8,
-                             'motor': 9}
+                             'motor': 9,
+                            'traffic_light': 10,
+                            'traffic_sign': 11,
+                            'prop': 12,
+                            'building': 13,
+                            'animal': 14}
 
 
 with open(os.path.normpath("utils/vehicle_names_and_categories.csv"), "r") as namefile:
@@ -218,89 +223,80 @@ def parse_LabelAugToVisDrone(bboxes):
     for item in items[:-1]:
         data = item.split(" ")
         # Indices can be found in /DeepGTAV-PreSIL/dataformat-augmented.txt
-        label = data[0]
+        label = data[0].lower()  # Convert to lowercase immediately
         left = int(data[4])
         top = int(data[5])
         right = int(data[6])
         bottom = int(data[7])
 
         object_name = data[21]
-
-
         ignore_this_bbox = False
 
-
-        # Convert Label to VisDrone Label
-
         try:
-            if label == 'Airplane':
-                ignore_this_bbox = True
-            elif label == 'Animal':
-                ignore_this_bbox = True
-            elif label == 'Boat':
-                ignore_this_bbox = True
-            elif label == 'Bus':
+            if label == 'prop':  # Props like boxes, barriers, etc
+                label = 'prop'
+            elif label == 'trafficlight':
+                label = 'traffic_light'
+            elif label == 'trafficsign':
+                label = 'traffic_sign'
+            elif label == 'building':
+                label = 'building'
+            elif label == 'animal':  # Will now match because we converted to lowercase
+                label = 'animal'
+            elif label == 'boat':
+                label = 'boat'
+            elif label == 'bus':
                 label = getLabelFromObjectName(object_name)        
-            elif label == 'Car':
+            elif label == 'car':
                 label = getLabelFromObjectName(object_name)
-            elif label == 'Cyclist':
+            elif label == 'cyclist':
                 label = 'bicycle'
-            elif label == 'Motorbike':
+            elif label == 'motorbike':
                 label = getLabelFromObjectName(object_name)
-            elif label == 'Pedestrian':
+            elif label == 'pedestrian':
                 label = 'pedestrian'
-            elif label == 'Person_sitting':
+            elif label == 'person_sitting':
                 label = 'people'
-            elif label == 'Railed':
+            elif label == 'railed':
                 ignore_this_bbox = True
-            elif label == 'Trailer':
-                # Trailer Bounding Boxes on vehicles are wrong, but on standing trailers they are right
-                # Also some of the standing Trailers are not labeled at all
+            elif label == 'trailer':
                 ignore_this_bbox = True
-            elif label == 'Truck':
+            elif label == 'truck':
                 label = getLabelFromObjectName(object_name)
-            elif label == 'Utility':
+            elif label == 'utility':
                 label = getLabelFromObjectName(object_name)
-            # This does not seem to exist
-            elif label == 'Van':
+            elif label == 'van':
                 label = getLabelFromObjectName(object_name)
 
-            
             if label == 'UNRECOGNIZED_CATEGORY':
-                # print('Encountered Unrecognized object_label in line: \n' + item)
                 ignore_this_bbox = True
+                
         except KeyError:
-
-            # Not Found Labels are ignored. This should not be that important, but in the future it can be improved with the NotFoundObjectNames.txt
-            label = object_name
+            label = object_name.lower()  # Ensure lowercase here too
             with open(os.path.normpath("utils/NotFoundObjectNames.txt"), "a") as not_found_file:
-                not_found_file.write(object_name + "\n") # + "\n From Labels: \n" + bboxes)
+                not_found_file.write(object_name + "\n")
             ignore_this_bbox = True
 
-        if label == "pedestrian" or label=="people":
-            # if the person is in a vehicle (data[22] != 0), find the vehicle
-            # with the corresponding entity_id data[22]== vehData[15]
-            # And append this person accordingly
+        if label == "pedestrian" or label == "people":
             if data[22] != "0":
-                thisVehicle="UNKNOWN"
+                thisVehicle = "UNKNOWN"
                 thisVehLabel = "UNKNOWN"
                 thisVehModel = "UNKNOWN"
                 for item2 in items[:-1]:
                     vehData = item2.split(" ")
                     if vehData[15] == data[22]:
-                        thisVehLabel = vehData[0]
+                        thisVehLabel = vehData[0].lower()  # Convert to lowercase
                         thisVehModel = vehData[21]
                         break
 
-                if (thisVehLabel == "Motorbike" and getLabelFromObjectName(thisVehModel) == "motor") or thisVehLabel=="Cyclist":
+                if (thisVehLabel == "motorbike" and getLabelFromObjectName(thisVehModel) == "motor") or thisVehLabel == "cyclist":
                     label = "people"
                 else:
                     ignore_this_bbox = True
 
-
         # ignore 1920 1080 0 0 boxes
         if not (left > right or top > bottom) and not ignore_this_bbox:
-            ret.append({"label": label,"left": left,"top": top,"right": right,"bottom": bottom})
+            ret.append({"label": label, "left": left, "top": top, "right": right, "bottom": bottom})
     return ret
 
 

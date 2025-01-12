@@ -54,7 +54,26 @@ INTERESTING_LOCATIONS = [
     [-1377.0, -2838.0, 335.0, "LSIA Runway"],
     [1695.0, 2650.0, 345.0, "Prison"],
     [-2235.0, -180.0, 340.0, "Pacific Ocean Highway"],
-    [890.0, -50.0, 378.0, "Rockford Hills"]
+    [890.0, -50.0, 378.0, "Rockford Hills"],
+    # New locations added
+    [-2150.0, 2600.0, 335.0, "Fort Zancudo"],
+    [2000.0, 4750.0, 340.0, "Grapeseed"],
+    [1250.0, -1500.0, 340.0, "Mirror Park"],
+    [-1150.0, 4925.0, 340.0, "North Point"],
+    [2650.0, 1650.0, 340.0, "Grand Senora Desert"],
+    [-1900.0, 2100.0, 345.0, "Chumash"],
+    [500.0, -2000.0, 335.0, "La Puerta"],
+    [-600.0, -1100.0, 330.0, "Little Seoul"],
+    [1100.0, 2200.0, 340.0, "Harmony"],
+    [-2600.0, 1700.0, 340.0, "Zancudo River"],
+    [3300.0, 5200.0, 340.0, "Mount Gordo"],
+    [-1000.0, 4400.0, 340.0, "Paleto Forest"],
+    [2500.0, -500.0, 340.0, "Tataviam Mountains"],
+    [200.0, 1200.0, 340.0, "Great Chaparral"],
+    [-500.0, 5700.0, 340.0, "Procopio Beach"],
+    [-2700.0, -300.0, 340.0, "Banham Canyon"],
+    [1500.0, 1100.0, 340.0, "Redwood Lights Track"],
+    [-300.0, -1400.0, 330.0, "Pillbox Hill"]
 ]
 
 CAMERA_PRESETS = [
@@ -136,8 +155,8 @@ CAMERA_PRESETS = [
         'height': 1.8,
         'camera': {
             'z': 1.8,  # Approximate driver eye level
-            'y': -0.5,  # Slightly behind windshield
-            'rot_x': -5,  # Slight downward angle
+            'y': 2.0,  # Moved forward to avoid collision (was -0.5)
+            'rot_x': 5,  # Slight downward angle
             'rot_y': 0,
             'rot_z': 0
         }
@@ -702,7 +721,7 @@ def main():
 
     # Data export settings
     parser.add_argument('-s', '--save_dir', 
-                        default='C:\\Workspace\\gta_data_export\\flying_car3',
+                        default='C:\\Workspace\\gta_data_export\\flying_car6',
                         help='Directory where generated data is saved')
 
     # Location & altitude parameters - Updated to Downtown Los Santos location
