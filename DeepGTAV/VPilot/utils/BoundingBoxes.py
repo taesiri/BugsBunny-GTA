@@ -28,7 +28,8 @@ VIDSDRONE_OBJECT_CATEGORY_TO_NUMBER = {'pedestrian': 0,
                             'traffic_sign': 11,
                             'prop': 12,
                             'building': 13,
-                            'animal': 14}
+                            'animal': 14,
+                            'boat': 15}
 
 
 with open(os.path.normpath("utils/vehicle_names_and_categories.csv"), "r") as namefile:

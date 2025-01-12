@@ -1,9 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set BASE_SAVE_DIR=C:\\Workspace\\gta_data_export\\x_capture_
+set BASE_SAVE_DIR=C:\\Workspace\\gta_data_export\\xxx_capture_
 
-for /l %%i in (1,1,40) do (
+for /l %%i in (1,1,10) do (
     echo Running iteration %%i...
     set "SAVE_DIR=!BASE_SAVE_DIR!%%i"
     python BugsBunny-Getdata-FlyingCar.py --random_location --camera_preset first_person --frames_to_capture 250 --save_dir "!SAVE_DIR!"
