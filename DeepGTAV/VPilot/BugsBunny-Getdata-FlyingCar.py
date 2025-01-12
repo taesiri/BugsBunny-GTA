@@ -87,7 +87,27 @@ INTERESTING_LOCATIONS = [
     [2500.0, 2100.0, 340.0, "RON Alternates Wind Farm"],
     [-800.0, 200.0, 340.0, "Vinewood Bowl"],
     [1800.0, -600.0, 340.0, "Tataviam Mountains East"],
-    [-2000.0, 1200.0, 340.0, "Tongva Valley"]
+    [-2000.0, 1200.0, 340.0, "Tongva Valley"],
+    [-200.0, -700.0, 330.0, "Textile City"],
+    [100.0, -700.0, 330.0, "Mission Row"],
+    [-1400.0, -1200.0, 330.0, "Vespucci Canals"],
+    [-900.0, 200.0, 335.0, "Vinewood"],
+    [-1600.0, 200.0, 340.0, "Richman"],
+    [1000.0, -2000.0, 335.0, "Cypress Flats"],
+    [2300.0, 1500.0, 340.0, "Grand Senora Desert East"],
+    [-2400.0, 3500.0, 340.0, "Raton Canyon"],
+    [2000.0, 3300.0, 340.0, "Sandy Shores Airfield"],
+    [-1800.0, 800.0, 340.0, "Pacific Bluffs Country Club"],
+    [1500.0, -2500.0, 335.0, "Elysian Island"],
+    [-300.0, 3000.0, 340.0, "Cassidy Creek"],
+    [3500.0, 3800.0, 340.0, "Mount Gordo Lighthouse"],
+    [-2800.0, 1200.0, 340.0, "Banham Canyon Drive"],
+    [2800.0, 5200.0, 340.0, "Mount Gordo Summit"],
+    [1200.0, 2000.0, 340.0, "Route 68 Approach"],
+    [-1200.0, 2500.0, 340.0, "Zancudo Valley"],
+    [2500.0, -1500.0, 335.0, "El Burro Heights"],
+    [-500.0, -2000.0, 330.0, "Los Santos Storm Drain"],
+    [1000.0, 3000.0, 340.0, "Alamo Sea Shore"]
 ]
 
 CAMERA_PRESETS = [
