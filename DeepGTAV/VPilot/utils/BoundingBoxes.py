@@ -29,7 +29,8 @@ VIDSDRONE_OBJECT_CATEGORY_TO_NUMBER = {'pedestrian': 0,
                             'prop': 12,
                             'building': 13,
                             'animal': 14,
-                            'boat': 15}
+                            'boat': 15,
+                            'airplane': 16}
 
 
 with open(os.path.normpath("utils/vehicle_names_and_categories.csv"), "r") as namefile:
@@ -268,6 +269,8 @@ def parse_LabelAugToVisDrone(bboxes):
                 label = getLabelFromObjectName(object_name)
             elif label == 'van':
                 label = getLabelFromObjectName(object_name)
+            elif label == 'airplane' or label == 'plane':  # Add handling for aircraft
+                label = 'airplane'  # Use consistent label
 
             if label == 'UNRECOGNIZED_CATEGORY':
                 ignore_this_bbox = True

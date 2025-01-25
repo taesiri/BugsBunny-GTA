@@ -12,6 +12,9 @@ import base64
 import numpy as np
 import open3d
 import win32gui
+import win32com.client
+import win32api
+import win32con
 from tqdm import tqdm
 from PIL import Image
 from random import uniform
@@ -44,70 +47,70 @@ matplotlib.use('Agg')  # Set the backend to non-interactive before importing pyp
 INTERESTING_LOCATIONS = [
     # [x, y, base_height, description]
     [-75.0, -818.0, 326.0, "Downtown Los Santos"],
-    [890.0, -2110.0, 350.0, "Los Santos International Airport"],
-    [-1667.0, -540.0, 375.0, "Del Perro Beach"],
-    [375.0, -1050.0, 329.0, "Legion Square"],
-    [-2030.0, 295.0, 340.0, "Pacific Bluffs"],
-    [1850.0, 3750.0, 333.0, "Sandy Shores"],
+    # [890.0, -2110.0, 350.0, "Los Santos International Airport"],
+    # [-1667.0, -540.0, 375.0, "Del Perro Beach"],
+    # [375.0, -1050.0, 329.0, "Legion Square"],
+    # [-2030.0, 295.0, 340.0, "Pacific Bluffs"],
+    # [1850.0, 3750.0, 333.0, "Sandy Shores"],
     [-90.0, -50.0, 330.0, "Vinewood Hills"],
     [5.0, 5315.0, 345.0, "Paleto Bay"],
     [-1377.0, -2838.0, 335.0, "LSIA Runway"],
     [1695.0, 2650.0, 345.0, "Prison"],
-    [-2235.0, -180.0, 340.0, "Pacific Ocean Highway"],
-    [890.0, -50.0, 378.0, "Rockford Hills"],
-    [-2150.0, 2600.0, 335.0, "Fort Zancudo"],
+    # [-2235.0, -180.0, 340.0, "Pacific Ocean Highway"],
+    # [890.0, -50.0, 378.0, "Rockford Hills"],
+    # [-2150.0, 2600.0, 335.0, "Fort Zancudo"],
     [2000.0, 4750.0, 340.0, "Grapeseed"],
-    [1250.0, -1500.0, 340.0, "Mirror Park"],
-    [-1150.0, 4925.0, 340.0, "North Point"],
-    [2650.0, 1650.0, 340.0, "Grand Senora Desert"],
-    [-1900.0, 2100.0, 345.0, "Chumash"],
-    [500.0, -2000.0, 335.0, "La Puerta"],
-    [-600.0, -1100.0, 330.0, "Little Seoul"],
-    [1100.0, 2200.0, 340.0, "Harmony"],
-    [-2600.0, 1700.0, 340.0, "Zancudo River"],
-    [3300.0, 5200.0, 340.0, "Mount Gordo"],
-    [-1000.0, 4400.0, 340.0, "Paleto Forest"],
-    [2500.0, -500.0, 340.0, "Tataviam Mountains"],
-    [200.0, 1200.0, 340.0, "Great Chaparral"],
-    [-500.0, 5700.0, 340.0, "Procopio Beach"],
-    [-2700.0, -300.0, 340.0, "Banham Canyon"],
-    [1500.0, 1100.0, 340.0, "Redwood Lights Track"],
-    [-300.0, -1400.0, 330.0, "Pillbox Hill"],
-    [750.0, -1600.0, 335.0, "La Mesa"],
-    [-2300.0, 3200.0, 340.0, "North Chumash"],
-    [2800.0, 3500.0, 340.0, "Alamo Sea"],
-    [400.0, 2600.0, 340.0, "Route 68"],
-    [-1500.0, 1300.0, 340.0, "Tongva Hills"],
-    [2100.0, -2700.0, 335.0, "Port of South Los Santos"],
-    [-900.0, 2700.0, 340.0, "Lago Zancudo"],
-    [3000.0, -500.0, 340.0, "Palmer-Taylor Power Station"],
-    [-2500.0, -500.0, 340.0, "Pacific Ocean Cliffs"],
-    [1200.0, -3000.0, 335.0, "Terminal"],
-    [-1200.0, -1700.0, 330.0, "Vespucci Beach"],
-    [2500.0, 2100.0, 340.0, "RON Alternates Wind Farm"],
-    [-800.0, 200.0, 340.0, "Vinewood Bowl"],
-    [1800.0, -600.0, 340.0, "Tataviam Mountains East"],
-    [-2000.0, 1200.0, 340.0, "Tongva Valley"],
-    [-200.0, -700.0, 330.0, "Textile City"],
-    [100.0, -700.0, 330.0, "Mission Row"],
-    [-1400.0, -1200.0, 330.0, "Vespucci Canals"],
-    [-900.0, 200.0, 335.0, "Vinewood"],
-    [-1600.0, 200.0, 340.0, "Richman"],
-    [1000.0, -2000.0, 335.0, "Cypress Flats"],
-    [2300.0, 1500.0, 340.0, "Grand Senora Desert East"],
-    [-2400.0, 3500.0, 340.0, "Raton Canyon"],
-    [2000.0, 3300.0, 340.0, "Sandy Shores Airfield"],
-    [-1800.0, 800.0, 340.0, "Pacific Bluffs Country Club"],
-    [1500.0, -2500.0, 335.0, "Elysian Island"],
-    [-300.0, 3000.0, 340.0, "Cassidy Creek"],
-    [3500.0, 3800.0, 340.0, "Mount Gordo Lighthouse"],
-    [-2800.0, 1200.0, 340.0, "Banham Canyon Drive"],
-    [2800.0, 5200.0, 340.0, "Mount Gordo Summit"],
-    [1200.0, 2000.0, 340.0, "Route 68 Approach"],
-    [-1200.0, 2500.0, 340.0, "Zancudo Valley"],
-    [2500.0, -1500.0, 335.0, "El Burro Heights"],
-    [-500.0, -2000.0, 330.0, "Los Santos Storm Drain"],
-    [1000.0, 3000.0, 340.0, "Alamo Sea Shore"]
+    # [1250.0, -1500.0, 340.0, "Mirror Park"],
+    # [-1150.0, 4925.0, 340.0, "North Point"],
+    # [2650.0, 1650.0, 340.0, "Grand Senora Desert"],
+    # [-1900.0, 2100.0, 345.0, "Chumash"],
+    # [500.0, -2000.0, 335.0, "La Puerta"],
+    # [-600.0, -1100.0, 330.0, "Little Seoul"],
+    # [1100.0, 2200.0, 340.0, "Harmony"],
+    # [-2600.0, 1700.0, 340.0, "Zancudo River"],
+    # [3300.0, 5200.0, 340.0, "Mount Gordo"],
+    # [-1000.0, 4400.0, 340.0, "Paleto Forest"],
+    # [2500.0, -500.0, 340.0, "Tataviam Mountains"],
+    # [200.0, 1200.0, 340.0, "Great Chaparral"],
+    # [-500.0, 5700.0, 340.0, "Procopio Beach"],
+    # [-2700.0, -300.0, 340.0, "Banham Canyon"],
+    # [1500.0, 1100.0, 340.0, "Redwood Lights Track"],
+    # [-300.0, -1400.0, 330.0, "Pillbox Hill"],
+    # [750.0, -1600.0, 335.0, "La Mesa"],
+    # [-2300.0, 3200.0, 340.0, "North Chumash"],
+    # [2800.0, 3500.0, 340.0, "Alamo Sea"],
+    # [400.0, 2600.0, 340.0, "Route 68"],
+    # [-1500.0, 1300.0, 340.0, "Tongva Hills"],
+    # [2100.0, -2700.0, 335.0, "Port of South Los Santos"],
+    # [-900.0, 2700.0, 340.0, "Lago Zancudo"],
+    # [3000.0, -500.0, 340.0, "Palmer-Taylor Power Station"],
+    # [-2500.0, -500.0, 340.0, "Pacific Ocean Cliffs"],
+    # [1200.0, -3000.0, 335.0, "Terminal"],
+    # [-1200.0, -1700.0, 330.0, "Vespucci Beach"],
+    # [2500.0, 2100.0, 340.0, "RON Alternates Wind Farm"],
+    # [-800.0, 200.0, 340.0, "Vinewood Bowl"],
+    # [1800.0, -600.0, 340.0, "Tataviam Mountains East"],
+    # [-2000.0, 1200.0, 340.0, "Tongva Valley"],
+    # [-200.0, -700.0, 330.0, "Textile City"],
+    # [100.0, -700.0, 330.0, "Mission Row"],
+    # [-1400.0, -1200.0, 330.0, "Vespucci Canals"],
+    # [-900.0, 200.0, 335.0, "Vinewood"],
+    # [-1600.0, 200.0, 340.0, "Richman"],
+    # [1000.0, -2000.0, 335.0, "Cypress Flats"],
+    # [2300.0, 1500.0, 340.0, "Grand Senora Desert East"],
+    # [-2400.0, 3500.0, 340.0, "Raton Canyon"],
+    # [2000.0, 3300.0, 340.0, "Sandy Shores Airfield"],
+    # [-1800.0, 800.0, 340.0, "Pacific Bluffs Country Club"],
+    # [1500.0, -2500.0, 335.0, "Elysian Island"],
+    # [-300.0, 3000.0, 340.0, "Cassidy Creek"],
+    # [3500.0, 3800.0, 340.0, "Mount Gordo Lighthouse"],
+    # [-2800.0, 1200.0, 340.0, "Banham Canyon Drive"],
+    # [2800.0, 5200.0, 340.0, "Mount Gordo Summit"],
+    # [1200.0, 2000.0, 340.0, "Route 68 Approach"],
+    # [-1200.0, 2500.0, 340.0, "Zancudo Valley"],
+    # [2500.0, -1500.0, 335.0, "El Burro Heights"],
+    # [-500.0, -2000.0, 330.0, "Los Santos Storm Drain"],
+    # [1000.0, 3000.0, 340.0, "Alamo Sea Shore"]
 ]
 
 CAMERA_PRESETS = [
@@ -167,7 +170,7 @@ CAMERA_PRESETS = [
         'height': 2.5,
         'camera': {
             'z': 2.5,
-            'y': -4.0,  # Closer than 'behind'
+            'y': -10.0,  # Changed from -4.0 to -6.0 to move camera further back
             'rot_x': -10,
             'rot_y': 0,
             'rot_z': 0
@@ -328,6 +331,16 @@ CAMERA_PRESETS = [
             'rot_z': 'dynamic'  # Dramatic rotating low angle
         }
     }
+]
+
+WEATHER_TYPES = [
+    'CLOUDS',
+    'OVERCAST',
+    'RAIN',
+    'CLEARING',
+    'THUNDER',
+    'SMOG',
+    'FOGGY',
 ]
 
 def get_random_location():
@@ -523,6 +536,19 @@ def gaussin_random_truncted(lower_bound, upper_bound, mean, std_dev):
     number = min(number, upper_bound)
     return number
 
+def send_f12_key():
+    """Simulate pressing F12 key."""
+    print("Sending F12 key")  # Debug print
+    hwnd = win32gui.FindWindow(None, "Grand Theft Auto V")
+    if hwnd:
+        win32gui.SetForegroundWindow(hwnd)  # Make GTA window active
+        time.sleep(0.1)  # Give time for window to become active
+        win32api.keybd_event(win32con.VK_F12, 0, 0, 0)  # Key down
+        time.sleep(0.1)
+        win32api.keybd_event(win32con.VK_F12, 0, win32con.KEYEVENTF_KEYUP, 0)  # Key up
+    else:
+        print("GTA V window not found")
+
 ###############################################################################
 # Capture Function
 ###############################################################################
@@ -554,7 +580,7 @@ def capture_data_for_configuration(
 
         # Initialize scenario with higher speed
         scenario = Scenario(
-            drivingMode=[786603, 78.0],  # [drivingMode, setSpeed] - 78.0 m/s is about 280 km/h
+            drivingMode=[786603, 500.0],  # [drivingMode, setSpeed] - Increased from 120.0 to 500.0 m/s (1800 km/h!)
             vehicle="voltic",
             location=[loc_x, loc_y, base_height],
             spawnedEntitiesDespawnSeconds=200
@@ -630,6 +656,11 @@ def capture_data_for_configuration(
         with tqdm(total=frames_to_capture, desc=f"Capturing frames at ({loc_x}, {loc_y})") as pbar:
             for count in range(1, frames_to_capture + 1):
                 try:
+                    # Send F12 key every 10 frames
+                    if count % 10 == 0:
+                        send_f12_key()
+                        time.sleep(0.1)  # Small delay after sending key
+                    
                     message = client.recvMessage()
                     if message is None:
                         logging.warning("Received null message from client")
@@ -769,8 +800,9 @@ def main():
                         help='Current/target flight height above base_height')
 
     # Environment parameters
-    parser.add_argument('--weather', type=str, default='CLEAR', 
-                        help="Weather type, e.g. 'CLEAR', 'RAIN', 'THUNDER'")
+    parser.add_argument('--weather', type=str, default='random', 
+                        choices=WEATHER_TYPES + ['random'],
+                        help="Weather type or 'random' for random selection")
     parser.add_argument('--time_hour', type=int, default=12, 
                         help='Hour of the day (0-23) for in-game time')
     parser.add_argument('--time_min', type=int, default=0, 
@@ -847,6 +879,11 @@ def main():
             args.base_height = location['base_height']
             print(f"\nSelected random location: {location['description']}")
             print(f"Coordinates: X={location['x']}, Y={location['y']}, Height={location['base_height']}")
+
+        # If weather is set to random, select a random weather type
+        if args.weather == 'random':
+            args.weather = random.choice(WEATHER_TYPES)
+            print(f"\nSelected random weather: {args.weather}")
 
         # Now capture data for the configuration specified by command-line arguments
         capture_data_for_configuration(
