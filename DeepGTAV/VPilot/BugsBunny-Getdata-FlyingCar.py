@@ -546,6 +546,9 @@ def send_f12_key():
         win32api.keybd_event(win32con.VK_F12, 0, 0, 0)  # Key down
         time.sleep(0.1)
         win32api.keybd_event(win32con.VK_F12, 0, win32con.KEYEVENTF_KEYUP, 0)  # Key up
+        time.sleep(0.1)  # Give time for key press to register
+        # Reposition window after key press
+        win32gui.SetWindowPos(hwnd, None, 0, 0, 1920, 1080, 0)
     else:
         print("GTA V window not found")
 
